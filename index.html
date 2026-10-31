@@ -20,19 +20,20 @@
   .seats label { margin-right: 1rem; font-weight: 600; }
   .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
   .note { font-size: .92rem; color: #4b5563; }
-  .live { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start; }
-  #board { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; max-width: 100%; }
-  .side { flex: 1; min-width: 280px; }
+  .live { display: grid; grid-template-columns: 460px 1fr; gap: 1.5rem; align-items: start; }
+  #board { display: block; width: 460px; height: 460px; border-radius: 8px; }
+  .side { min-width: 0; }
+  @media (max-width: 780px) { .live { grid-template-columns: 1fr; } #board { width: 100%; height: auto; } }
   #progress { height: 12px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: .4rem 0; }
   #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .15s; }
   .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 600; }
   .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; display: none; }
   .spinner.on { display: inline-block; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .bar-row { margin: .45rem 0; }
-  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; }
+  .bar-row { margin: .45rem 0; min-height: 38px; }
+  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; min-height: 1.3em; }
   .bar-track { height: 14px; background: #eef0f3; border-radius: 7px; overflow: hidden; }
-  .bar-fill { height: 100%; transition: width .2s; }
+  .bar-fill { height: 100%; transition: width .3s ease-out; }
   .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; color: #fff; font-size: .8rem; margin: 2px; font-weight: 600; }
   .pill.none { background: #9ca3af; }
   table { border-collapse: collapse; width: 100%; margin-top: .4rem; }
@@ -449,7 +450,6 @@ const $ = id => document.getElementById(id);
 const COLOR_HEX = { yellow: '#eab308', green: '#16a34a', red: '#dc2626', blue: '#2563eb', none: '#9ca3af' };
 const cap = c => c.charAt(0).toUpperCase() + c.slice(1);
 const canvas = $('board'), ctx = canvas.getContext('2d');
-const CX = 230, CY = 230, R_TRACK = 165, R_OUT = 192, R_SAFE_IN = 150;
 let run = null, watch = null, watchTimer = null, stopFlag = false, startedAt = 0;
 
 function selectedPlayers() { return SEAT_ORDER.filter(c => $('cb-' + c).checked); }
@@ -466,12 +466,59 @@ $('preset3').onclick = () => setPreset(['yellow', 'green', 'blue']);
 $('preset4').onclick = () => setPreset(SEAT_ORDER);
 setPreset(['yellow', 'green', 'blue']);
 
-// ----- board drawing (pawns placed on sorry-board.png) -----
-// Positions are fractions (0..1) of the board image. The track square centres
-// are the four corners of the track, with 15 squares per side, clockwise from top-left.
-// If pawns look slightly off, adjust these numbers.
-const BOARD_CORNERS = [[0.095, 0.095], [0.905, 0.095], [0.905, 0.905], [0.095, 0.905]]; // TL, TR, BR, BL
-const BOARD_CENTER = [0.5, 0.5];
+// ----- board drawing (pixel-accurate positions on sorry-board.png) -----
+// All coordinates are fractions 0..1 of the canvas (= board image).
+// Measured from the 600×600 source image; adjust if your image differs.
+
+// 60 main-track squares, clockwise from Yellow's Start at top-left (t=0).
+// Each side has 15 squares; spacing ≈ 0.0547 of image width.
+(function buildTrackXY() {
+  const S = 0.0547; // square spacing as fraction
+  const TOP_Y = 0.088, BOT_Y = 0.912, LEFT_X = 0.088, RIGHT_X = 0.912;
+  const coords = [];
+  // Top row: left → right (t 0..14), Yellow Start is t=0
+  for (let i = 0; i < 15; i++) coords.push([LEFT_X + i * S, TOP_Y]);
+  // Right col: top → bottom (t 15..29), Green Start is t=15
+  for (let i = 0; i < 15; i++) coords.push([RIGHT_X, TOP_Y + i * S]);
+  // Bottom row: right → left (t 30..44), Red Start is t=30
+  for (let i = 0; i < 15; i++) coords.push([RIGHT_X - i * S, BOT_Y]);
+  // Left col: bottom → top (t 45..59), Blue Start is t=45
+  for (let i = 0; i < 15; i++) coords.push([LEFT_X, BOT_Y - i * S]);
+  window._TRACK_XY = coords;
+})();
+
+// Safety zone coords for each colour: 5 squares (progress 61..65), going inward.
+// Each zone runs along the colour's side, one row in from the edge.
+const _SAFE_XY = {
+  yellow: Array.from({length:5}, (_,i) => [0.088 + (i+1)*0.0547*1.5, 0.160]),
+  green:  Array.from({length:5}, (_,i) => [0.838, 0.088 + (i+1)*0.0547*1.5]),
+  red:    Array.from({length:5}, (_,i) => [0.912 - (i+1)*0.0547*1.5, 0.838]),
+  blue:   Array.from({length:5}, (_,i) => [0.160, 0.912 - (i+1)*0.0547*1.5]),
+};
+
+// Home area centres (progress 66) for 4 pawns.
+const _HOME_XY = {
+  yellow: [[0.215,0.215],[0.270,0.215],[0.215,0.270],[0.270,0.270]],
+  green:  [[0.730,0.215],[0.785,0.215],[0.730,0.270],[0.785,0.270]],
+  red:    [[0.730,0.730],[0.785,0.730],[0.730,0.785],[0.785,0.785]],
+  blue:   [[0.215,0.730],[0.270,0.730],[0.215,0.785],[0.270,0.785]],
+};
+
+// Start area offsets (progress 0, pawns waiting) — 4 slots near each corner.
+const _START_XY = {
+  yellow: [[0.108,0.200],[0.163,0.200],[0.108,0.253],[0.163,0.253]],
+  green:  [[0.837,0.200],[0.892,0.200],[0.837,0.253],[0.892,0.253]],
+  red:    [[0.837,0.747],[0.892,0.747],[0.837,0.800],[0.892,0.800]],
+  blue:   [[0.108,0.747],[0.163,0.747],[0.108,0.800],[0.163,0.800]],
+};
+
+function pawnXY(c, p, i) {
+  if (p === 0)              return _START_XY[c][i];
+  if (p <= LAST_MAIN)       return window._TRACK_XY[trackIdx(c, p)];
+  if (p <= SAFE_LAST)       return _SAFE_XY[c][p - SAFE_FIRST];
+  return _HOME_XY[c][i];
+}
+
 const boardImg = new Image();
 let boardReady = false;
 boardImg.onload = () => {
@@ -480,25 +527,6 @@ boardImg.onload = () => {
 };
 boardImg.src = 'sorry-board.png';
 
-function trackFrac(t) {
-  const side = Math.floor(t / 15), k = (t % 15) / 15;
-  const a = BOARD_CORNERS[side], b = BOARD_CORNERS[(side + 1) % 4];
-  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
-}
-
-function pawnFrac(c, p, i) {
-  const start = trackFrac(START_IDX[c]);
-  const dx = BOARD_CENTER[0] - start[0], dy = BOARD_CENTER[1] - start[1];
-  const len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;   // inward direction
-  const px = -uy, py = ux;                                           // sideways direction
-  const toward = f => [start[0] + dx * f, start[1] + dy * f];
-  const side = (base, amt) => [base[0] + px * amt, base[1] + py * amt];
-  if (p === 0) return side(toward(0.035), (i - 1.5) * 0.03);          // waiting in Start
-  if (p <= LAST_MAIN) return trackFrac(trackIdx(c, p));                // main track
-  if (p <= SAFE_LAST) return toward(0.09 + (p - SAFE_FIRST) * 0.06);   // safety zone
-  return side(toward(0.42), (i - 1.5) * 0.04);                         // home
-}
-
 function drawBoard(s, players) {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -506,17 +534,26 @@ function drawBoard(s, players) {
     ctx.drawImage(boardImg, 0, 0, W, H);
   } else {
     ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#6b7280'; ctx.font = '16px system-ui'; ctx.fillText('Loading board…', 20, 30);
+    ctx.fillStyle = '#6b7280'; ctx.font = '16px system-ui';
+    ctx.fillText('Loading board image…', 20, 240);
   }
   for (const c of players) {
     s.pos[c].forEach((p, i) => {
-      const f = pawnFrac(c, p, i);
-      const x = f[0] * W, y = f[1] * H;
-      ctx.beginPath(); ctx.arc(x, y, 9, 0, 2 * Math.PI);
+      const [fx, fy] = pawnXY(c, p, i);
+      const x = fx * W, y = fy * H;
+      // shadow for visibility
+      ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 4;
+      ctx.beginPath(); ctx.arc(x, y, 10, 0, 2 * Math.PI);
       ctx.fillStyle = COLOR_HEX[c]; ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+      // pawn number label
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i + 1, x, y);
     });
   }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
 // ----- live watched game (sample only, not counted in the statistics) -----
