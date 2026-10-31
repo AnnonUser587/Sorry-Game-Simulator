@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorry! Simulator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f8fafc; line-height: 1.45; }
+  h1 { margin-bottom: .2rem; }
+  h3 { margin: 0 0 .6rem 0; }
+  .sub { color: #555; margin-top: 0; }
+  .card { background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  label { display: inline-block; margin-right: 1.2rem; margin-top: .4rem; }
+  input[type=number], input[type=text] { width: 120px; padding: .35rem .4rem; font-size: 1rem; }
+  button { padding: .5rem 1.1rem; font-size: 1rem; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; margin: .25rem .3rem .25rem 0; }
+  button.secondary { background: #e5e7eb; color: #111827; }
+  button.danger { background: #dc2626; }
+  button:disabled { background: #9ca3af; cursor: default; }
+  .seats label { margin-right: 1rem; font-weight: 600; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .note { font-size: .92rem; color: #4b5563; }
+  .live { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start; }
+  #board { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; max-width: 100%; }
+  .side { flex: 1; min-width: 280px; }
+  #progress { height: 12px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: .4rem 0; }
+  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .15s; }
+  .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 600; }
+  .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; display: none; }
+  .spinner.on { display: inline-block; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .bar-row { margin: .45rem 0; }
+  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; }
+  .bar-track { height: 14px; background: #eef0f3; border-radius: 7px; overflow: hidden; }
+  .bar-fill { height: 100%; transition: width .2s; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; color: #fff; font-size: .8rem; margin: 2px; font-weight: 600; }
+  .pill.none { background: #9ca3af; }
+  table { border-collapse: collapse; width: 100%; margin-top: .4rem; }
+  th, td { padding: .5rem .6rem; border-bottom: 1px solid #eef0f3; text-align: left; }
+  th { background: #f3f4f6; font-weight: 600; }
+  .verdict { font-weight: 600; padding: .6rem .8rem; border-radius: 6px; }
+  .fair { background: #ecfdf5; color: #065f46; }
+  .unfair { background: #fef2f2; color: #991b1b; }
+  pre { background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 8px; max-height: 360px; overflow: auto; font-size: .8rem; white-space: pre-wrap; }
+  details { margin-top: .3rem; }
+  summary { cursor: pointer; font-weight: 600; }
+  ul { padding-left: 1.2rem; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>Sorry! Simulator</h1>
+<p class="sub">Simulate thousands of games with 2, 3 or 4 players using the standard card deck, bumps, safety zones and slides.</p>
+
+<div class="card">
+  <h3>1. Choose players</h3>
+  <div>
+    <button class="secondary" id="preset2">2 players</button>
+    <button class="secondary" id="preset3">3 players</button>
+    <button class="secondary" id="preset4">4 players</button>
+  </div>
+  <div class="seats" style="margin-top:.5rem">
+    <label><input type="checkbox" id="cb-yellow"> Yellow</label>
+    <label><input type="checkbox" id="cb-green"> Green</label>
+    <label><input type="checkbox" id="cb-red"> Red</label>
+    <label><input type="checkbox" id="cb-blue"> Blue</label>
+  </div>
+  <p class="note" id="order"></p>
+  <h3 style="margin-top:1rem">2. Settings</h3>
+  <label>Games <input type="number" id="games" value="10000" min="10" max="1000000"></label>
+  <label>Seed <input type="text" id="seed" placeholder="random"></label>
+  <div style="margin-top:.6rem">
+    <button id="run">Run simulation</button>
+    <button id="stop" class="danger" disabled>Stop</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="live">
+    <div>
+      <canvas id="board" width="460" height="460"></canvas>
+      <div class="note" id="watchText">Press “Run simulation” to start. A sample game will be played live here.</div>
+      <div class="note" id="homeCounts"></div>
+      <label class="note">Watch speed <input type="range" id="speed" min="60" max="1000" value="300"></label>
+    </div>
+    <div class="side">
+      <div class="spinRow"><div class="spinner" id="spin"></div><span id="status">Idle</span></div>
+      <div id="progress"><div id="progressBar"></div></div>
+      <div class="note" id="rate"></div>
+      <div id="bars" style="margin-top:.8rem"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card hidden" id="results">
+  <h3>Results</h3>
+  <table>
+    <thead><tr><th>Player</th><th>Wins</th><th>Win rate (of games with a winner) ± 95% CI</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="note" id="meta"></p>
+  <p class="verdict" id="verdict"></p>
+</div>
+
+<div class="card hidden" id="logCard">
+  <h3>Play-by-play of game #1 (for checking the rules)</h3>
+  <pre id="log"></pre>
+</div>
+
+<div class="card">
+  <details>
+    <summary>Rules implemented, and what is verified vs. assumed</summary>
+    <ul class="note">
+      <li><b>Verified from your photo:</b> the four Start areas and their clockwise order (yellow top-left, green top-right, red bottom-right, blue bottom-left), with each color's Home and Safety Zone arm.</li>
+      <li><b>Assumed, not verified:</b> the exact slide positions. The code uses four slides, one per side, each four squares long, with heads at track squares 5, 20, 35 and 50 (counting from yellow's Start as square 0). Check these against your physical board; they are in <code>SLIDE_HEADS</code>.</li>
+      <li><b>Assumed, not verified:</b> 60 track squares, 5 Safety Zone squares plus Home per color, and that a pawn's lap ends on the square just before its own Start.</li>
+      <li>Standard 45-card deck: five 1s; four each of 2, 3, 4, 5, 7, 8, 10, 11, 12 and Sorry!. The discard pile is reshuffled when the deck runs out.</li>
+      <li>1 or 2 brings a pawn out of Start, unless your own pawn is already on your Start square. Drawing a 2 always gives an extra draw.</li>
+      <li>Landing on an opponent on the main track sends that pawn back to Start. Pawns in Safety Zones or Home can't be bumped. You can't land on your own pawn.</li>
+      <li>Slides: a pawn that lands on a slide head (by a move of 1 to 12, a backward move, or a split of 7) slides to the tail four squares later, bumping any opponent on the tail. If your own pawn is on the tail, or the slide would run past your last main-track square, the slide isn't taken. Slides don't apply to Sorry! or swap landings.</li>
+      <li>4 moves back 4. 10 moves forward 10 or back 1. 7 moves one pawn 7 or splits it between two pawns. 11 moves forward 11 or swaps with an opponent's main-track pawn (including one on its Start square).</li>
+      <li>Sorry! takes a pawn from your Start and sends an opponent's main-track pawn back to Start. If you have no pawn in Start or no target, the card is discarded.</li>
+      <li>If no move is legal, the card is discarded. Pawns in a Safety Zone can only move backward within it. Home holds any number of pawns.</li>
+      <li>Every player uses the same decision rule: maximize (your progress value − 0.7 × each opponent's progress value), with random tie-breaks. Results therefore measure turn order and seating, not one player playing better.</li>
+      <li>Turn order is clockwise around the board, starting from the selected player that comes first in seat order (yellow, green, red, blue). Unused colors still have their Start squares on the track.</li>
+      <li>Games stop after 3,000 player turns and count as "no winner."</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+// ===================== CORE (no DOM) =====================
+const SEAT_ORDER = ['yellow', 'green', 'red', 'blue']; // clockwise, from top-left
+const START_IDX = { yellow: 0, green: 15, red: 30, blue: 45 };
+const TRACK = 60, LAST_MAIN = 60, SAFE_FIRST = 61, SAFE_LAST = 65, HOME = 66;
+const SLIDE_LEN = 4;
+const SLIDE_HEADS = [5, 20, 35, 50]; // ASSUMED positions; verify on your board
+const MAX_TURNS = 3000;
+const FWD = new Set([1, 2, 3, 5, 7, 8, 10, 11, 12]);
+const DECK_COUNTS = [[1, 5], [2, 4], [3, 4], [4, 4], [5, 4], [7, 4], [8, 4], [10, 4], [11, 4], [12, 4], ['S', 4]];
+
+function trackIdx(c, p) { return (START_IDX[c] + p - 1) % TRACK; }     // p in 1..60
+function progressAt(c, t) { return ((t - START_IDX[c] + TRACK) % TRACK) + 1; }
+
+function mulberry32(a) {
+  return function () {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle(a, rng) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildDeck() {
+  const d = [];
+  for (const [v, n] of DECK_COUNTS) for (let k = 0; k < n; k++) d.push(v);
+  return d;
+}
+
+function emptyState() {
+  return { pos: { yellow: [0, 0, 0, 0], green: [0, 0, 0, 0], red: [0, 0, 0, 0], blue: [0, 0, 0, 0] } };
+}
+
+function clone(s) {
+  const pos = {};
+  for (const c of SEAT_ORDER) pos[c] = s.pos[c].slice();
+  return { pos };
+}
+
+// Bump any opponent (in players) sitting on main-track square t.
+function bumpAt(s, c, t, players) {
+  for (const o of players) {
+    if (o === c) continue;
+    for (let j = 0; j < 4; j++) {
+      const q = s.pos[o][j];
+      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === t) s.pos[o][j] = 0;
+    }
+  }
+}
+
+// Put pawn i of color c at progress np. Returns new state, or null if illegal.
+function landMain(s, c, i, np, players, useSlides) {
+  if (np >= 1 && np <= LAST_MAIN) {
+    const t = trackIdx(c, np);
+    for (let k = 0; k < 4; k++) {
+      if (k === i) continue;
+      const q = s.pos[c][k];
+      if (q >= 1 && q <= LAST_MAIN && trackIdx(c, q) === t) return null; // own pawn in the way
+    }
+    bumpAt(s, c, t, players);
+    s.pos[c][i] = np;
+    if (useSlides && SLIDE_HEADS.includes(t) && np + SLIDE_LEN <= LAST_MAIN) {
+      const tailP = np + SLIDE_LEN;
+      let blocked = false;
+      for (let k = 0; k < 4; k++) if (k !== i && s.pos[c][k] === tailP) blocked = true;
+      if (!blocked) {
+        bumpAt(s, c, trackIdx(c, tailP), players);
+        s.pos[c][i] = tailP;
+      }
+    }
+    return s;
+  }
+  if (np >= SAFE_FIRST && np <= SAFE_LAST) {
+    for (let k = 0; k < 4; k++) if (k !== i && s.pos[c][k] === np) return null;
+  }
+  s.pos[c][i] = np;
+  return s;
+}
+
+function candidates(s, c, card, players) {
+  const mine = s.pos[c], opp = players.filter(o => o !== c), out = [];
+  if (card === 'S') {
+    const i = mine.indexOf(0);
+    if (i >= 0) for (const o of opp) for (let j = 0; j < 4; j++) {
+      const q = s.pos[o][j];
+      if (q >= 1 && q <= LAST_MAIN) out.push({ kind: 'sorry', c, i, o, j });
+    }
+    return out;
+  }
+  if (card === 1 || card === 2) {
+    const i = mine.indexOf(0);
+    if (i >= 0 && !mine.includes(1)) out.push({ kind: 'out', c, i });
+  }
+  for (let i = 0; i < 4; i++) {
+    const p = mine[i];
+    if (p === 0 || p === HOME) continue;
+    if (FWD.has(card)) out.push({ kind: 'fwd', c, i, n: card });
+    if (card === 4) out.push({ kind: 'back', c, i, n: 4 });
+    if (card === 10) out.push({ kind: 'back', c, i, n: 1 });
+    if (card === 11 && p <= LAST_MAIN) for (const o of opp) for (let j = 0; j < 4; j++) {
+      const q = s.pos[o][j];
+      if (q >= 1 && q <= LAST_MAIN) out.push({ kind: 'swap', c, i, o, j });
+    }
+  }
+  if (card === 7) {
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      if (i === j) continue;
+      const pi = mine[i], pj = mine[j];
+      if (pi === 0 || pj === 0 || pi === HOME || pj === HOME) continue;
+      for (let a = 1; a <= 6; a++) out.push({ kind: 'split', c, i, j, a, b: 7 - a });
+    }
+  }
+  return out;
+}
+
+function applyMove(s0, m, players) {
+  const c = m.c, s = clone(s0);
+  switch (m.kind) {
+    case 'out': return landMain(s, c, m.i, 1, players, false);
+    case 'fwd': {
+      const np = s.pos[c][m.i] + m.n;
+      return np > HOME ? null : landMain(s, c, m.i, np, players, true);
+    }
+    case 'back': {
+      const p = s.pos[c][m.i], np = p - m.n;
+      if (p >= SAFE_FIRST) { if (np < SAFE_FIRST) return null; }
+      else if (np < 1) return null;
+      return landMain(s, c, m.i, np, players, true);
+    }
+    case 'swap': {
+      const p = s.pos[c][m.i], q = s.pos[m.o][m.j];
+      const tm = trackIdx(c, p), to = trackIdx(m.o, q);
+      s.pos[c][m.i] = progressAt(c, to);
+      s.pos[m.o][m.j] = progressAt(m.o, tm);
+      return s;
+    }
+    case 'sorry': {
+      const q = s.pos[m.o][m.j], t = trackIdx(m.o, q);
+      s.pos[m.o][m.j] = 0;
+      return landMain(s, c, m.i, progressAt(c, t), players, false);
+    }
+    case 'split': {
+      const s1 = applyMove(s, { kind: 'fwd', c, i: m.i, n: m.a }, players);
+      return s1 ? applyMove(s1, { kind: 'fwd', c, i: m.j, n: m.b }, players) : null;
+    }
+  }
+  return null;
+}
+
+function val(p) {
+  if (p === 0) return 0;
+  if (p <= LAST_MAIN) return 8 + p;
+  if (p <= SAFE_LAST) return 70 + 3 * (p - SAFE_FIRST);
+  return 100;
+}
+
+function evalFor(s, c, players) {
+  let mine = 0, opp = 0;
+  for (const o of players) for (const p of s.pos[o]) {
+    if (o === c) mine += val(p); else opp += val(p);
+  }
+  return mine - 0.7 * opp;
+}
+
+function chooseMove(s, c, card, rng, players) {
+  let best = -Infinity, list = [];
+  for (const m of candidates(s, c, card, players)) {
+    const s2 = applyMove(s, m, players);
+    if (!s2) continue;
+    const e = evalFor(s2, c, players);
+    if (e > best + 1e-9) { best = e; list = [{ m, s2 }]; }
+    else if (Math.abs(e - best) <= 1e-9) list.push({ m, s2 });
+  }
+  if (!list.length) return null;
+  return list[Math.floor(rng() * list.length)];
+}
+
+function describe(m) {
+  switch (m.kind) {
+    case 'out': return 'brought a pawn out of Start';
+    case 'fwd': return `moved a pawn forward ${m.n}`;
+    case 'back': return `moved a pawn back ${m.n}`;
+    case 'swap': return `swapped places with ${m.o}'s pawn`;
+    case 'sorry': return `Sorry! on ${m.o}'s pawn`;
+    case 'split': return `split 7 as ${m.a} + ${m.b}`;
+  }
+  return '';
+}
+
+function onTrackOpp(s, c, players) {
+  let n = 0;
+  for (const o of players) if (o !== c) for (const p of s.pos[o]) if (p >= 1 && p <= LAST_MAIN) n++;
+  return n;
+}
+
+// Generator: yields after every card action, returns {winner, turns}.
+function* gameSteps(rng, players) {
+  let s = emptyState();
+  const deck = shuffle(buildDeck(), rng), discard = [];
+  const draw = () => {
+    if (deck.length === 0) {
+      while (discard.length) deck.push(discard.pop());
+      shuffle(deck, rng);
+    }
+    return deck.pop();
+  };
+  const N = players.length;
+  for (let t = 0; t < MAX_TURNS; t++) {
+    const c = players[t % N];
+    let again = true;
+    while (again) {
+      again = false;
+      const card = draw();
+      discard.push(card);
+      if (card === 2) again = true;
+      const pick = chooseMove(s, c, card, rng, players);
+      let text;
+      if (pick) {
+        const bumped = onTrackOpp(s, c, players) - onTrackOpp(pick.s2, c, players);
+        text = `${c} drew ${card}: ${describe(pick.m)}${bumped > 0 ? ` (bumped ${bumped})` : ''}`;
+        s = pick.s2;
+      } else {
+        text = `${c} drew ${card}: no legal move`;
+      }
+      yield { s, text, turn: t + 1, c, card };
+      if (s.pos[c].every(p => p === HOME)) return { winner: c, turns: t + 1 };
+    }
+  }
+  return { winner: null, turns: MAX_TURNS };
+}
+
+function playGame(rng, players, wantLog) {
+  const gen = gameSteps(rng, players);
+  const log = wantLog ? [] : null;
+  let r = gen.next();
+  while (!r.done) {
+    if (log) log.push(`T${r.value.turn} ${r.value.text}`);
+    r = gen.next();
+  }
+  if (log) log.push(r.value.winner ? `*** ${r.value.winner} wins on turn ${r.value.turns} ***` : 'Turn limit reached, no winner');
+  return { winner: r.value.winner, turns: r.value.turns, log };
+}
+
+function createRun(total, seed, players) {
+  return {
+    total, done: 0, players, rng: mulberry32(seed),
+    wins: { yellow: 0, green: 0, red: 0, blue: 0, none: 0 },
+    turnSum: 0, firstLog: null, recent: []
+  };
+}
+
+function runOne(run) {
+  const r = playGame(run.rng, run.players, run.done === 0);
+  run.wins[r.winner || 'none']++;
+  run.turnSum += r.turns;
+  if (run.done === 0) run.firstLog = r.log;
+  run.recent.unshift(r.winner || 'none');
+  if (run.recent.length > 14) run.recent.pop();
+  run.done++;
+}
+
+// Returns null if the state is consistent, otherwise a description of the problem.
+function checkState(s, players) {
+  for (const c of SEAT_ORDER) {
+    if (!players.includes(c)) {
+      if (s.pos[c].some(p => p !== 0)) return `inactive ${c} has pawns on board`;
+      continue;
+    }
+    const safe = new Set();
+    for (const p of s.pos[c]) {
+      if (p < 0 || p > HOME) return `bad progress ${p}`;
+      if (p >= SAFE_FIRST && p <= SAFE_LAST) {
+        if (safe.has(p)) return `two ${c} pawns in the same safety square`;
+        safe.add(p);
+      }
+    }
+  }
+  const occ = new Map();
+  for (const c of players) for (const p of s.pos[c]) {
+    if (p >= 1 && p <= LAST_MAIN) {
+      const t = trackIdx(c, p);
+      if (occ.has(t)) return `two pawns on track square ${t}`;
+      occ.set(t, c);
+    }
+  }
+  return null;
+}
+
+// Chi-square survival function, for the fairness test.
+function erfc(x) {
+  const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+  const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 +
+    t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 +
+    t * (-0.82215223 + t * 0.17087277)))))))));
+  return x >= 0 ? r : 2 - r;
+}
+function chi2Survival(x, df) {
+  if (df === 1) return erfc(Math.sqrt(x / 2));
+  if (df === 2) return Math.exp(-x / 2);
+  if (df === 3) return erfc(Math.sqrt(x / 2)) + Math.sqrt(2 * x / Math.PI) * Math.exp(-x / 2);
+  // Wilson-Hilferty approximation for larger df
+  const z = (Math.cbrt(x / df) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df));
+  return 0.5 * erfc(z / Math.SQRT2);
+}
+// ===================== END CORE =====================
+
+
+// ===================== UI =====================
+const $ = id => document.getElementById(id);
+const COLOR_HEX = { yellow: '#eab308', green: '#16a34a', red: '#dc2626', blue: '#2563eb', none: '#9ca3af' };
+const cap = c => c.charAt(0).toUpperCase() + c.slice(1);
+const canvas = $('board'), ctx = canvas.getContext('2d');
+const CX = 230, CY = 230, R_TRACK = 165, R_OUT = 192, R_SAFE_IN = 150;
+let run = null, watch = null, watchTimer = null, stopFlag = false, startedAt = 0;
+
+function selectedPlayers() { return SEAT_ORDER.filter(c => $('cb-' + c).checked); }
+function setPreset(list) { for (const c of SEAT_ORDER) $('cb-' + c).checked = list.includes(c); updateOrder(); }
+function updateOrder() {
+  const p = selectedPlayers();
+  $('order').textContent = p.length >= 2
+    ? 'Turn order (clockwise): ' + p.map((c, i) => `P${i + 1} ${cap(c)}`).join(' → ') + ' → P1'
+    : 'Pick at least 2 players.';
+}
+SEAT_ORDER.forEach(c => $('cb-' + c).addEventListener('change', updateOrder));
+$('preset2').onclick = () => setPreset(['yellow', 'red']);
+$('preset3').onclick = () => setPreset(['yellow', 'green', 'blue']);
+$('preset4').onclick = () => setPreset(SEAT_ORDER);
+setPreset(['yellow', 'green', 'blue']);
+
+// ----- board drawing (pawns placed on sorry-board.png) -----
+// Positions are fractions (0..1) of the board image. The track square centres
+// are the four corners of the track, with 15 squares per side, clockwise from top-left.
+// If pawns look slightly off, adjust these numbers.
+const BOARD_CORNERS = [[0.095, 0.095], [0.905, 0.095], [0.905, 0.905], [0.095, 0.905]]; // TL, TR, BR, BL
+const BOARD_CENTER = [0.5, 0.5];
+const boardImg = new Image();
+let boardReady = false;
+boardImg.onload = () => {
+  boardReady = true;
+  drawBoard(watch ? watch.state : emptyState(), watch ? watch.players : ['yellow', 'green', 'blue']);
+};
+boardImg.src = 'sorry-board.png';
+
+function trackFrac(t) {
+  const side = Math.floor(t / 15), k = (t % 15) / 15;
+  const a = BOARD_CORNERS[side], b = BOARD_CORNERS[(side + 1) % 4];
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+}
+
+function pawnFrac(c, p, i) {
+  const start = trackFrac(START_IDX[c]);
+  const dx = BOARD_CENTER[0] - start[0], dy = BOARD_CENTER[1] - start[1];
+  const len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;   // inward direction
+  const px = -uy, py = ux;                                           // sideways direction
+  const toward = f => [start[0] + dx * f, start[1] + dy * f];
+  const side = (base, amt) => [base[0] + px * amt, base[1] + py * amt];
+  if (p === 0) return side(toward(0.035), (i - 1.5) * 0.03);          // waiting in Start
+  if (p <= LAST_MAIN) return trackFrac(trackIdx(c, p));                // main track
+  if (p <= SAFE_LAST) return toward(0.09 + (p - SAFE_FIRST) * 0.06);   // safety zone
+  return side(toward(0.42), (i - 1.5) * 0.04);                         // home
+}
+
+function drawBoard(s, players) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  if (boardReady) {
+    ctx.drawImage(boardImg, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#6b7280'; ctx.font = '16px system-ui'; ctx.fillText('Loading board…', 20, 30);
+  }
+  for (const c of players) {
+    s.pos[c].forEach((p, i) => {
+      const f = pawnFrac(c, p, i);
+      const x = f[0] * W, y = f[1] * H;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 2 * Math.PI);
+      ctx.fillStyle = COLOR_HEX[c]; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    });
+  }
+}
+
+// ----- live watched game (sample only, not counted in the statistics) -----
+function startWatch(players) {
+  watch = { players, rng: mulberry32((Math.random() * 4294967296) >>> 0), gen: null, state: emptyState(), text: 'Shuffling the deck…', games: 0, hold: 0 };
+  watchTimer = setInterval(stepWatch, +$('speed').value);
+}
+function stepWatch() {
+  if (!watch) return;
+  if (watch.hold > 0) { watch.hold--; }
+  else {
+    if (!watch.gen) {
+      watch.gen = gameSteps(watch.rng, watch.players);
+      watch.state = emptyState();
+      watch.text = 'Game starting';
+    }
+    const r = watch.gen.next();
+    if (r.done) {
+      watch.gen = null;
+      watch.games++;
+      watch.text = r.value.winner ? `${cap(r.value.winner)} wins on turn ${r.value.turns}!` : 'Turn limit reached, no winner';
+      watch.hold = 8;
+    } else {
+      watch.state = r.value.s;
+      watch.text = `Turn ${r.value.turn}: ${r.value.text}`;
+    }
+  }
+  drawBoard(watch.state, watch.players);
+  $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in stats). ${watch.text}`;
+  $('homeCounts').textContent = watch.players.map(c =>
+    `${cap(c)}: ${watch.state.pos[c].filter(p => p === HOME).length}/4 home`).join('   ·   ');
+}
+$('speed').oninput = () => {
+  if (watchTimer) { clearInterval(watchTimer); watchTimer = setInterval(stepWatch, +$('speed').value); }
+};
+
+// ----- running the batch -----
+function renderLive() {
+  const decided = run.done - run.wins.none;
+  let bars = '';
+  for (const c of run.players) {
+    const w = run.wins[c], share = decided ? w / decided : 0;
+    bars += `<div class="bar-row"><div class="bar-label"><span><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)}</span>` +
+      `<span>${w.toLocaleString()} · ${(share * 100).toFixed(1)}%</span></div>` +
+      `<div class="bar-track"><div class="bar-fill" style="width:${(share * 100).toFixed(2)}%;background:${COLOR_HEX[c]}"></div></div></div>`;
+  }
+  $('bars').innerHTML = bars;
+  const pct = run.done / run.total * 100;
+  $('progressBar').style.width = pct + '%';
+  $('status').textContent = `Simulating ${run.done.toLocaleString()} / ${run.total.toLocaleString()} games (${pct.toFixed(1)}%)`;
+  const elapsed = (performance.now() - startedAt) / 1000;
+  const rps = elapsed > 0 ? run.done / elapsed : 0;
+  const eta = rps > 0 ? (run.total - run.done) / rps : 0;
+  $('rate').textContent = `${rps.toFixed(0)} games/sec · ETA ${eta < 1 ? '<1' : Math.round(eta)} s · ${elapsed.toFixed(1)} s elapsed`;
+}
+
+function tick() {
+  const t0 = performance.now();
+  while (!stopFlag && run.done < run.total && performance.now() - t0 < 30) runOne(run);
+  renderLive();
+  if (stopFlag || run.done >= run.total) finish();
+  else setTimeout(tick, 16);
+}
+
+function setRunning(on) {
+  $('run').disabled = on;
+  $('stop').disabled = !on;
+  $('spin').classList.toggle('on', on);
+  SEAT_ORDER.forEach(c => $('cb-' + c).disabled = on);
+  ['preset2', 'preset3', 'preset4', 'games', 'seed'].forEach(id => $(id).disabled = on);
+}
+
+$('run').onclick = () => {
+  const players = selectedPlayers();
+  if (players.length < 2) { updateOrder(); return; }
+  const total = Math.max(10, Math.min(1000000, parseInt($('games').value, 10) || 10000));
+  const seedText = $('seed').value.trim();
+  const seed = seedText === '' ? ((Math.random() * 4294967296) >>> 0)
+    : (/^\d+$/.test(seedText) ? (Number(seedText) >>> 0) : strHash(seedText));
+  run = createRun(total, seed, players);
+  run.seed = seed;
+  stopFlag = false;
+  startedAt = performance.now();
+  $('results').classList.add('hidden');
+  $('logCard').classList.add('hidden');
+  setRunning(true);
+  startWatch(players);
+  tick();
+};
+
+$('stop').onclick = () => { stopFlag = true; };
+
+function strHash(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h;
+}
+
+function finish() {
+  clearInterval(watchTimer); watchTimer = null; watch = null;
+  run.total = run.done; // in case the run was stopped early
+  renderLive();
+  setRunning(false);
+  $('status').textContent = stopFlag && run.done < run.total
+    ? `Stopped after ${run.done.toLocaleString()} games` : `Finished ${run.done.toLocaleString()} games`;
+  showResults();
+}
+
+function showResults() {
+  const players = run.players, decided = run.total - run.wins.none;
+  const expected = decided / players.length;
+  let chi = 0, rows = '';
+  for (const c of players) {
+    const w = run.wins[c];
+    const share = decided ? w / decided : 0;
+    const ci = decided ? 1.96 * Math.sqrt(share * (1 - share) / decided) * 100 : 0;
+    chi += expected ? (w - expected) ** 2 / expected : 0;
+    rows += `<tr><td><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)} (P${players.indexOf(c) + 1})</td>` +
+      `<td>${w.toLocaleString()}</td><td>${(share * 100).toFixed(2)}% ± ${ci.toFixed(2)}</td></tr>`;
+  }
+  $('rows').innerHTML = rows;
+  const p = chi2Survival(chi, players.length - 1);
+  $('meta').textContent = `Games: ${run.total.toLocaleString()} · no winner (turn limit): ${run.wins.none.toLocaleString()} · ` +
+    `average length: ${(run.turnSum / run.total).toFixed(1)} player turns · seed: ${run.seed} · ` +
+    `equal odds would be ${(100 / players.length).toFixed(2)}% each.`;
+  const v = $('verdict');
+  const top = players.slice().sort((a, b) => run.wins[b] - run.wins[a])[0];
+  const topShare = decided ? run.wins[top] / decided * 100 : 0;
+  const fairShare = 100 / players.length;
+  const techNote = `<div class="note" style="font-weight:400;margin-top:.4rem">Technical detail: chi-square p-value = ${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)} (below 0.05 counts as unfair).</div>`;
+  if (p < 0.05) {
+    v.className = 'verdict unfair';
+    v.innerHTML = `<b>Not fair.</b> ${cap(top)} wins ${topShare.toFixed(1)}% of games, but in a fair game each player would win about ${fairShare.toFixed(1)}%. A gap this large would almost never happen by chance, so the seating or turn order gives someone an edge.` + techNote;
+  } else {
+    v.className = 'verdict fair';
+    v.innerHTML = `<b>Looks fair.</b> Every player wins close to their fair share of ${fairShare.toFixed(1)}%. The small differences are what you'd expect from chance.` + techNote;
+  }
+  $('log').textContent = (run.firstLog || []).join('\n');
+  $('results').classList.remove('hidden');
+  $('logCard').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
