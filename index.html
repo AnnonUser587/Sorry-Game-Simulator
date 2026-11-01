@@ -6,7 +6,7 @@
 <title>Sorry! Simulator</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f8fafc; line-height: 1.45; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f8fafc; line-height: 1.45; }
   h1 { margin-bottom: .2rem; }
   h3 { margin: 0 0 .6rem 0; }
   .sub { color: #555; margin-top: 0; }
@@ -20,26 +20,42 @@
   .seats label { margin-right: 1rem; font-weight: 600; }
   .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
   .note { font-size: .92rem; color: #4b5563; }
-  .live { display: grid; grid-template-columns: 460px 1fr; gap: 1.5rem; align-items: start; }
-  #board { display: block; width: 460px; height: 460px; border-radius: 8px; }
+
+  /* Live area: fixed two-column grid so nothing jumps or resizes while running */
+  .live { display: grid; grid-template-columns: 460px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  .boardCol { width: 460px; }
+  #board { display: block; width: 460px; height: 460px; border-radius: 8px; background: #e5e7eb; }
+  .turnRow { display: flex; gap: .8rem; align-items: center; height: 84px; margin-top: .5rem; }
+  .cardFace { flex: 0 0 56px; width: 56px; height: 78px; border: 2px solid #374151; border-radius: 7px; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.6rem; color: #111827; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+  .cardFace.sorry { color: #dc2626; font-size: .95rem; }
+  .turnInfo { min-width: 0; overflow: hidden; }
+  #turnWho { font-weight: 700; height: 1.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cardDesc { height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #watchText { height: 4.4em; overflow: hidden; }
+  #homeCounts { height: 1.5em; overflow: hidden; white-space: nowrap; }
+  .speedRow { height: 2em; }
   .side { min-width: 0; }
-  @media (max-width: 780px) { .live { grid-template-columns: 1fr; } #board { width: 100%; height: auto; } }
+  #bars { min-height: 190px; margin-top: .8rem; }
   #progress { height: 12px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: .4rem 0; }
   #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .15s; }
-  .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 600; }
-  .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; display: none; }
-  .spinner.on { display: inline-block; animation: spin .8s linear infinite; }
+  .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 600; min-height: 1.6em; }
+  .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; visibility: hidden; }
+  .spinner.on { visibility: visible; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .bar-row { margin: .45rem 0; min-height: 38px; }
-  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; min-height: 1.3em; }
+  .bar-row { margin: .45rem 0; height: 40px; }
+  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; height: 1.3em; }
   .bar-track { height: 14px; background: #eef0f3; border-radius: 7px; overflow: hidden; }
   .bar-fill { height: 100%; transition: width .3s ease-out; }
-  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; color: #fff; font-size: .8rem; margin: 2px; font-weight: 600; }
-  .pill.none { background: #9ca3af; }
+  @media (max-width: 800px) {
+    .live { grid-template-columns: minmax(0, 1fr); }
+    .boardCol { width: 100%; }
+    #board { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+  }
+
   table { border-collapse: collapse; width: 100%; margin-top: .4rem; }
   th, td { padding: .5rem .6rem; border-bottom: 1px solid #eef0f3; text-align: left; }
   th { background: #f3f4f6; font-weight: 600; }
-  .verdict { font-weight: 600; padding: .6rem .8rem; border-radius: 6px; }
+  .verdict { padding: .7rem .9rem; border-radius: 6px; }
   .fair { background: #ecfdf5; color: #065f46; }
   .unfair { background: #fef2f2; color: #991b1b; }
   pre { background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 8px; max-height: 360px; overflow: auto; font-size: .8rem; white-space: pre-wrap; }
@@ -52,7 +68,7 @@
 <body>
 
 <h1>Sorry! Simulator</h1>
-<p class="sub">Simulate thousands of games with 2, 3 or 4 players using the standard card deck, bumps, safety zones and slides.</p>
+<p class="sub">Simulate thousands of games with 2, 3 or 4 players: real deck, bumping, colored slides and safety zones.</p>
 
 <div class="card">
   <h3>1. Choose players</h3>
@@ -79,17 +95,24 @@
 
 <div class="card">
   <div class="live">
-    <div>
-      <canvas id="board" width="460" height="460"></canvas>
-      <div class="note" id="watchText">Press “Run simulation” to start. A sample game will be played live here.</div>
+    <div class="boardCol">
+      <canvas id="board" width="920" height="920"></canvas>
+      <div class="turnRow">
+        <div class="cardFace" id="cardFace">?</div>
+        <div class="turnInfo">
+          <div id="turnWho">Ready</div>
+          <div id="cardDesc" class="note"></div>
+        </div>
+      </div>
+      <div class="note" id="watchText">Press “Run simulation” to start. A sample game is played live on the board (it isn’t counted in the stats).</div>
       <div class="note" id="homeCounts"></div>
-      <label class="note">Watch speed <input type="range" id="speed" min="60" max="1000" value="300"></label>
+      <div class="speedRow note">Slow <input type="range" id="speed" min="1" max="10" value="6"> Fast</div>
     </div>
     <div class="side">
       <div class="spinRow"><div class="spinner" id="spin"></div><span id="status">Idle</span></div>
       <div id="progress"><div id="progressBar"></div></div>
-      <div class="note" id="rate"></div>
-      <div id="bars" style="margin-top:.8rem"></div>
+      <div class="note" id="rate">&nbsp;</div>
+      <div id="bars"></div>
     </div>
   </div>
 </div>
@@ -101,7 +124,7 @@
     <tbody id="rows"></tbody>
   </table>
   <p class="note" id="meta"></p>
-  <p class="verdict" id="verdict"></p>
+  <div class="verdict" id="verdict"></div>
 </div>
 
 <div class="card hidden" id="logCard">
@@ -113,36 +136,44 @@
   <details>
     <summary>Rules implemented, and what is verified vs. assumed</summary>
     <ul class="note">
-      <li><b>Verified from your photo:</b> the four Start areas and their clockwise order (yellow top-left, green top-right, red bottom-right, blue bottom-left), with each color's Home and Safety Zone arm.</li>
-      <li><b>Assumed, not verified:</b> the exact slide positions. The code uses four slides, one per side, each four squares long, with heads at track squares 5, 20, 35 and 50 (counting from yellow's Start as square 0). Check these against your physical board; they are in <code>SLIDE_HEADS</code>.</li>
-      <li><b>Assumed, not verified:</b> 60 track squares, 5 Safety Zone squares plus Home per color, and that a pawn's lap ends on the square just before its own Start.</li>
-      <li>Standard 45-card deck: five 1s; four each of 2, 3, 4, 5, 7, 8, 10, 11, 12 and Sorry!. The discard pile is reshuffled when the deck runs out.</li>
-      <li>1 or 2 brings a pawn out of Start, unless your own pawn is already on your Start square. Drawing a 2 always gives an extra draw.</li>
-      <li>Landing on an opponent on the main track sends that pawn back to Start. Pawns in Safety Zones or Home can't be bumped. You can't land on your own pawn.</li>
-      <li>Slides: a pawn that lands on a slide head (by a move of 1 to 12, a backward move, or a split of 7) slides to the tail four squares later, bumping any opponent on the tail. If your own pawn is on the tail, or the slide would run past your last main-track square, the slide isn't taken. Slides don't apply to Sorry! or swap landings.</li>
-      <li>4 moves back 4. 10 moves forward 10 or back 1. 7 moves one pawn 7 or splits it between two pawns. 11 moves forward 11 or swaps with an opponent's main-track pawn (including one on its Start square).</li>
-      <li>Sorry! takes a pawn from your Start and sends an opponent's main-track pawn back to Start. If you have no pawn in Start or no target, the card is discarded.</li>
-      <li>If no move is legal, the card is discarded. Pawns in a Safety Zone can only move backward within it. Home holds any number of pawns.</li>
-      <li>Every player uses the same decision rule: maximize (your progress value − 0.7 × each opponent's progress value), with random tie-breaks. Results therefore measure turn order and seating, not one player playing better.</li>
-      <li>Turn order is clockwise around the board, starting from the selected player that comes first in seat order (yellow, green, red, blue). Unused colors still have their Start squares on the track.</li>
-      <li>Games stop after 3,000 player turns and count as "no winner."</li>
+      <li><b>Taken from the board photo:</b> 60 track squares (15 per side, clockwise: yellow top, green right, red bottom, blue left). Each color's Start circle sits beside the 5th square of its side (the “exit square”), the Safety Zone lane turns off at the 3rd square of its side, and every side has two slides: a 4-square slide starting on the 2nd square and a 5-square slide starting on the 10th. Each Safety Zone has 5 squares and then Home.</li>
+      <li>Deck: 45 cards. Five 1s; four each of 2, 3, 4, 5, 7, 8, 10, 11, 12 and Sorry!. The discard pile is reshuffled when the deck runs out.</li>
+      <li>A 1 or 2 brings a pawn out of Start onto your exit square (unless your own pawn is already there). A 2 always gives another draw, even if no move was possible.</li>
+      <li>Landing on an opponent's pawn on the main track sends it back to Start. Pawns in Safety Zones or Home can't be bumped. You can't land on your own pawn.</li>
+      <li>Slides: landing on the first square of a slide of <i>another</i> color sends the pawn to the end of the slide, and every pawn on the slide squares, including your own, goes back to Start. Slides of your own color do nothing. Slides apply to every kind of landing: normal moves, backward moves, 7 splits, 11 swaps (for both pawns) and Sorry!.</li>
+      <li>4 moves back 4. 10 moves forward 10 or back 1. 7 moves one pawn 7 or splits between two pawns. 11 moves forward 11 or swaps with an opponent's main-track pawn. A backward move from near your exit square can carry a pawn behind it, close to your Safety Zone entrance.</li>
+      <li>Sorry! takes a pawn from Start and puts it on an opponent's main-track pawn, sending that one back to Start. With no pawn in Start or no target, the card is forfeited.</li>
+      <li>If no move is legal the card is forfeited. Home must be reached by exact count. Pawns in a Safety Zone can only move backward within it (assumption).</li>
+      <li>Every player uses the same decision rule (maximize your progress minus 0.7 × each opponent's progress, random tie-breaks), so results show the effect of seating and turn order, not different skill levels. Real players may play differently.</li>
+      <li>Turn order is clockwise starting from the first selected color in the order yellow, green, red, blue. Unused colors' Start squares stay empty.</li>
+      <li>Games stop after 3,000 player turns and count as “no winner.”</li>
     </ul>
   </details>
 </div>
 
 <script>
 // ===================== CORE (no DOM) =====================
-const SEAT_ORDER = ['yellow', 'green', 'red', 'blue']; // clockwise, from top-left
-const START_IDX = { yellow: 0, green: 15, red: 30, blue: 45 };
-const TRACK = 60, LAST_MAIN = 60, SAFE_FIRST = 61, SAFE_LAST = 65, HOME = 66;
-const SLIDE_LEN = 4;
-const SLIDE_HEADS = [5, 20, 35, 50]; // ASSUMED positions; verify on your board
+const SEAT_ORDER = ['yellow', 'green', 'red', 'blue'];       // clockwise, starting at top
+const SIDE = { yellow: 0, green: 1, red: 2, blue: 3 };
+const EXIT_IDX = { yellow: 4, green: 19, red: 34, blue: 49 }; // track square next to each Start circle
+const TRACK = 60;
+// Pawn progress p: 0 = in Start, 1..60 = main track (p=2 is the exit square, p=60 is the
+// square where the Safety Zone turns off), 61..65 = Safety Zone, 66 = Home.
+const LAST_MAIN = 60, SAFE_FIRST = 61, SAFE_LAST = 65, HOME = 66;
 const MAX_TURNS = 3000;
 const FWD = new Set([1, 2, 3, 5, 7, 8, 10, 11, 12]);
 const DECK_COUNTS = [[1, 5], [2, 4], [3, 4], [4, 4], [5, 4], [7, 4], [8, 4], [10, 4], [11, 4], [12, 4], ['S', 4]];
 
-function trackIdx(c, p) { return (START_IDX[c] + p - 1) % TRACK; }     // p in 1..60
-function progressAt(c, t) { return ((t - START_IDX[c] + TRACK) % TRACK) + 1; }
+// Slides: two per side. 4-long (2nd to 5th square) and 5-long (10th to 14th square).
+const SLIDE_AT = new Array(TRACK).fill(null);
+for (const c of SEAT_ORDER) {
+  const b = 15 * SIDE[c];
+  SLIDE_AT[b + 1] = { tail: b + 4, color: c };
+  SLIDE_AT[b + 9] = { tail: b + 13, color: c };
+}
+
+function trackIdx(c, p) { return (EXIT_IDX[c] + p - 2 + TRACK) % TRACK; }               // p in 1..60
+function progressAt(c, t) { return ((((t - EXIT_IDX[c] + 1) % TRACK) + TRACK) % TRACK) + 1; }
 
 function mulberry32(a) {
   return function () {
@@ -177,7 +208,7 @@ function clone(s) {
   return { pos };
 }
 
-// Bump any opponent (in players) sitting on main-track square t.
+// Bump every opponent pawn (among players) on main-track square t.
 function bumpAt(s, c, t, players) {
   for (const o of players) {
     if (o === c) continue;
@@ -188,8 +219,27 @@ function bumpAt(s, c, t, players) {
   }
 }
 
-// Put pawn i of color c at progress np. Returns new state, or null if illegal.
-function landMain(s, c, i, np, players, useSlides) {
+// If pawn i of color c sits on the head of another color's slide, slide it to the tail
+// and send every other pawn on the slide (any color, including its own) back to Start.
+function settleSlide(s, c, i, players) {
+  const p = s.pos[c][i];
+  if (p < 1 || p > LAST_MAIN) return;
+  const t = trackIdx(c, p), sl = SLIDE_AT[t];
+  if (!sl || sl.color === c) return;
+  const len = (sl.tail - t + TRACK) % TRACK;
+  for (let k = 1; k <= len; k++) {
+    const u = (t + k) % TRACK;
+    for (const o of players) for (let j = 0; j < 4; j++) {
+      if (o === c && j === i) continue;
+      const q = s.pos[o][j];
+      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === u) s.pos[o][j] = 0;
+    }
+  }
+  s.pos[c][i] = progressAt(c, sl.tail);
+}
+
+// Put pawn i of color c at progress np. Returns the new state, or null if illegal.
+function landMain(s, c, i, np, players) {
   if (np >= 1 && np <= LAST_MAIN) {
     const t = trackIdx(c, np);
     for (let k = 0; k < 4; k++) {
@@ -199,15 +249,7 @@ function landMain(s, c, i, np, players, useSlides) {
     }
     bumpAt(s, c, t, players);
     s.pos[c][i] = np;
-    if (useSlides && SLIDE_HEADS.includes(t) && np + SLIDE_LEN <= LAST_MAIN) {
-      const tailP = np + SLIDE_LEN;
-      let blocked = false;
-      for (let k = 0; k < 4; k++) if (k !== i && s.pos[c][k] === tailP) blocked = true;
-      if (!blocked) {
-        bumpAt(s, c, trackIdx(c, tailP), players);
-        s.pos[c][i] = tailP;
-      }
-    }
+    settleSlide(s, c, i, players);
     return s;
   }
   if (np >= SAFE_FIRST && np <= SAFE_LAST) {
@@ -229,7 +271,7 @@ function candidates(s, c, card, players) {
   }
   if (card === 1 || card === 2) {
     const i = mine.indexOf(0);
-    if (i >= 0 && !mine.includes(1)) out.push({ kind: 'out', c, i });
+    if (i >= 0 && !mine.includes(2)) out.push({ kind: 'out', c, i });   // p=2 is the exit square
   }
   for (let i = 0; i < 4; i++) {
     const p = mine[i];
@@ -256,28 +298,31 @@ function candidates(s, c, card, players) {
 function applyMove(s0, m, players) {
   const c = m.c, s = clone(s0);
   switch (m.kind) {
-    case 'out': return landMain(s, c, m.i, 1, players, false);
+    case 'out': return landMain(s, c, m.i, 2, players);
     case 'fwd': {
       const np = s.pos[c][m.i] + m.n;
-      return np > HOME ? null : landMain(s, c, m.i, np, players, true);
+      return np > HOME ? null : landMain(s, c, m.i, np, players);
     }
     case 'back': {
-      const p = s.pos[c][m.i], np = p - m.n;
-      if (p >= SAFE_FIRST) { if (np < SAFE_FIRST) return null; }
-      else if (np < 1) return null;
-      return landMain(s, c, m.i, np, players, true);
+      const p = s.pos[c][m.i];
+      let np = p - m.n;
+      if (p >= SAFE_FIRST) { if (np < SAFE_FIRST) return null; }   // stays inside the Safety Zone
+      else if (np < 1) np += TRACK;                                 // wraps behind the exit square
+      return landMain(s, c, m.i, np, players);
     }
     case 'swap': {
       const p = s.pos[c][m.i], q = s.pos[m.o][m.j];
       const tm = trackIdx(c, p), to = trackIdx(m.o, q);
       s.pos[c][m.i] = progressAt(c, to);
       s.pos[m.o][m.j] = progressAt(m.o, tm);
+      settleSlide(s, c, m.i, players);
+      settleSlide(s, m.o, m.j, players);
       return s;
     }
     case 'sorry': {
       const q = s.pos[m.o][m.j], t = trackIdx(m.o, q);
       s.pos[m.o][m.j] = 0;
-      return landMain(s, c, m.i, progressAt(c, t), players, false);
+      return landMain(s, c, m.i, progressAt(c, t), players);
     }
     case 'split': {
       const s1 = applyMove(s, { kind: 'fwd', c, i: m.i, n: m.a }, players);
@@ -320,20 +365,25 @@ function describe(m) {
     case 'out': return 'brought a pawn out of Start';
     case 'fwd': return `moved a pawn forward ${m.n}`;
     case 'back': return `moved a pawn back ${m.n}`;
-    case 'swap': return `swapped places with ${m.o}'s pawn`;
-    case 'sorry': return `Sorry! on ${m.o}'s pawn`;
-    case 'split': return `split 7 as ${m.a} + ${m.b}`;
+    case 'swap': return `swapped places with a ${m.o} pawn`;
+    case 'sorry': return `Sorry! on a ${m.o} pawn`;
+    case 'split': return `split the 7 as ${m.a} + ${m.b}`;
   }
   return '';
 }
 
-function onTrackOpp(s, c, players) {
+function countOnTrack(s, players) {
   let n = 0;
-  for (const o of players) if (o !== c) for (const p of s.pos[o]) if (p >= 1 && p <= LAST_MAIN) n++;
+  for (const o of players) for (const p of s.pos[o]) if (p >= 1 && p <= LAST_MAIN) n++;
+  return n;
+}
+function countInStart(s, players) {
+  let n = 0;
+  for (const o of players) for (const p of s.pos[o]) if (p === 0) n++;
   return n;
 }
 
-// Generator: yields after every card action, returns {winner, turns}.
+// Generator: yields after every card action, returns { winner, turns }.
 function* gameSteps(rng, players) {
   let s = emptyState();
   const deck = shuffle(buildDeck(), rng), discard = [];
@@ -356,13 +406,13 @@ function* gameSteps(rng, players) {
       const pick = chooseMove(s, c, card, rng, players);
       let text;
       if (pick) {
-        const bumped = onTrackOpp(s, c, players) - onTrackOpp(pick.s2, c, players);
-        text = `${c} drew ${card}: ${describe(pick.m)}${bumped > 0 ? ` (bumped ${bumped})` : ''}`;
+        const bumped = countInStart(pick.s2, players) - countInStart(s, players);
+        text = `${c} drew ${card === 'S' ? 'Sorry!' : card}: ${describe(pick.m)}${bumped > 0 ? ` (${bumped} pawn${bumped > 1 ? 's' : ''} sent back to Start)` : ''}`;
         s = pick.s2;
       } else {
-        text = `${c} drew ${card}: no legal move`;
+        text = `${c} drew ${card === 'S' ? 'Sorry!' : card}: no legal move`;
       }
-      yield { s, text, turn: t + 1, c, card };
+      yield { s, text, turn: t + 1, c, card, again };
       if (s.pos[c].every(p => p === HOME)) return { winner: c, turns: t + 1 };
     }
   }
@@ -385,7 +435,7 @@ function createRun(total, seed, players) {
   return {
     total, done: 0, players, rng: mulberry32(seed),
     wins: { yellow: 0, green: 0, red: 0, blue: 0, none: 0 },
-    turnSum: 0, firstLog: null, recent: []
+    turnSum: 0, firstLog: null
   };
 }
 
@@ -394,8 +444,6 @@ function runOne(run) {
   run.wins[r.winner || 'none']++;
   run.turnSum += r.turns;
   if (run.done === 0) run.firstLog = r.log;
-  run.recent.unshift(r.winner || 'none');
-  if (run.recent.length > 14) run.recent.pop();
   run.done++;
 }
 
@@ -438,7 +486,6 @@ function chi2Survival(x, df) {
   if (df === 1) return erfc(Math.sqrt(x / 2));
   if (df === 2) return Math.exp(-x / 2);
   if (df === 3) return erfc(Math.sqrt(x / 2)) + Math.sqrt(2 * x / Math.PI) * Math.exp(-x / 2);
-  // Wilson-Hilferty approximation for larger df
   const z = (Math.cbrt(x / df) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df));
   return 0.5 * erfc(z / Math.SQRT2);
 }
@@ -447,10 +494,128 @@ function chi2Survival(x, df) {
 
 // ===================== UI =====================
 const $ = id => document.getElementById(id);
-const COLOR_HEX = { yellow: '#eab308', green: '#16a34a', red: '#dc2626', blue: '#2563eb', none: '#9ca3af' };
+const COLOR_HEX = { yellow: '#f2b705', green: '#2f9e44', red: '#d92b2b', blue: '#1c7ed6', none: '#9ca3af' };
+const COLOR_DARK = { yellow: '#8a6500', green: '#17592a', red: '#7d1111', blue: '#0e467f' };
 const cap = c => c.charAt(0).toUpperCase() + c.slice(1);
 const canvas = $('board'), ctx = canvas.getContext('2d');
-let run = null, watch = null, watchTimer = null, stopFlag = false, startedAt = 0;
+const KSCALE = canvas.width / 400;           // all board geometry below is in 400 x 400 image pixels
+let run = null, watch = null, watchTimer = null, rafId = 0, stopFlag = false, startedAt = 0, running = false;
+
+// ----- board geometry (measured on sorry-board.png, 400 x 400) -----
+function trackXY(t) {
+  const side = Math.floor(t / 15), k = t % 15;
+  switch (side) {
+    case 0: return [35 + 22 * k, 35];
+    case 1: return [365, 35 + 22 * k];
+    case 2: return [365 - 22 * k, 365];
+    default: return [35, 365 - 22 * k];
+  }
+}
+const SAFE_XY = {
+  yellow: [0, 1, 2, 3, 4].map(i => [79, 57 + 22 * i]),
+  green:  [0, 1, 2, 3, 4].map(i => [343 - 22 * i, 79]),
+  red:    [0, 1, 2, 3, 4].map(i => [321, 343 - 22 * i]),
+  blue:   [0, 1, 2, 3, 4].map(i => [57 + 22 * i, 321])
+};
+const START_C = { yellow: [122.5, 72.5], green: [326.5, 122.5], red: [277.5, 327.5], blue: [72.5, 277.5] };
+const HOME_C  = { yellow: [78.5, 175.5], green: [223.5, 78.5], red: [322, 223.5], blue: [176.5, 320.5] };
+const SLOT = [[-9, -9], [9, -9], [-9, 9], [9, 9]];
+function slotXY(c, p, i) {
+  if (p === 0) return [START_C[c][0] + SLOT[i][0], START_C[c][1] + SLOT[i][1]];
+  if (p <= LAST_MAIN) return trackXY(trackIdx(c, p));
+  if (p <= SAFE_LAST) return SAFE_XY[c][p - SAFE_FIRST];
+  return [HOME_C[c][0] + SLOT[i][0], HOME_C[c][1] + SLOT[i][1]];
+}
+
+const boardImg = new Image();
+let boardReady = false;
+boardImg.onload = () => { boardReady = true; render(); };
+boardImg.src = 'sorry-board.png';
+
+// ----- pawn view / animation -----
+const view = { players: [], pawns: {} };   // key "color-i" -> { x, y, pts, t0, dur }
+
+function snapView(players, state) {
+  view.players = players;
+  view.pawns = {};
+  for (const c of players) for (let i = 0; i < 4; i++) {
+    const [x, y] = slotXY(c, state.pos[c][i], i);
+    view.pawns[c + '-' + i] = { x, y, pts: null, t0: 0, dur: 1 };
+  }
+}
+
+function pathFor(c, i, p0, p1) {
+  const end = slotXY(c, p1, i);
+  const pts = [];
+  if (p0 >= 1 && p1 > p0 && p1 - p0 <= 24) {                // walk forward square by square
+    for (let p = p0 + 1; p <= p1; p++) pts.push(slotXY(c, p, i));
+  } else if (p0 >= 1 && p1 >= 1 && p1 < p0 && p0 - p1 <= 4 && p0 <= LAST_MAIN) {  // walk back
+    for (let p = p0 - 1; p >= p1; p--) pts.push(slotXY(c, p, i));
+  } else {
+    pts.push(end);
+  }
+  return pts;
+}
+
+function animateTo(prev, next, dur) {
+  const now = performance.now();
+  for (const c of view.players) for (let i = 0; i < 4; i++) {
+    const p0 = prev.pos[c][i], p1 = next.pos[c][i];
+    if (p0 === p1) continue;
+    const v = view.pawns[c + '-' + i];
+    v.pts = [[v.x, v.y]].concat(pathFor(c, i, p0, p1));
+    v.t0 = now; v.dur = dur;
+  }
+}
+
+function stepPositions() {
+  const now = performance.now();
+  for (const k in view.pawns) {
+    const v = view.pawns[k];
+    if (!v.pts) continue;
+    const u = Math.min(1, (now - v.t0) / v.dur);
+    const segs = v.pts.length - 1, f = u * segs;
+    const a = Math.min(segs - 1, Math.floor(f)), r = f - a;
+    const A = v.pts[a], B = v.pts[a + 1];
+    v.x = A[0] + (B[0] - A[0]) * r; v.y = A[1] + (B[1] - A[1]) * r;
+    if (u >= 1) { v.x = v.pts[segs][0]; v.y = v.pts[segs][1]; v.pts = null; }
+  }
+}
+
+function drawPawn(c, x, y, lifted) {
+  const col = COLOR_HEX[c], dark = COLOR_DARK[c];
+  const lift = lifted ? 3 : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath(); ctx.ellipse(x + 1, y + 7, 7, 2.6, 0, 0, 2 * Math.PI); ctx.fill();
+  y -= lift;
+  ctx.fillStyle = col; ctx.strokeStyle = dark; ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(x - 6.5, y + 7);
+  ctx.quadraticCurveTo(x - 3.2, y + 0.5, x - 2.2, y - 3);
+  ctx.lineTo(x + 2.2, y - 3);
+  ctx.quadraticCurveTo(x + 3.2, y + 0.5, x + 6.5, y + 7);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y - 6.3, 4.3, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(x - 1.4, y - 7.6, 1.3, 0, 2 * Math.PI); ctx.fill();
+}
+
+function render() {
+  ctx.setTransform(KSCALE, 0, 0, KSCALE, 0, 0);
+  ctx.clearRect(0, 0, 400, 400);
+  if (boardReady) ctx.drawImage(boardImg, 0, 0, 400, 400);
+  else { ctx.fillStyle = '#e5e7eb'; ctx.fillRect(0, 0, 400, 400); ctx.fillStyle = '#6b7280'; ctx.font = '14px system-ui'; ctx.fillText('Loading board…', 150, 200); }
+  stepPositions();
+  const list = [];
+  for (const k in view.pawns) { const v = view.pawns[k]; list.push({ c: k.split('-')[0], v }); }
+  list.sort((a, b) => a.v.y - b.v.y);
+  for (const { c, v } of list) drawPawn(c, v.x, v.y, !!v.pts);
+}
+
+function rafLoop() {
+  render();
+  rafId = requestAnimationFrame(rafLoop);
+}
 
 function selectedPlayers() { return SEAT_ORDER.filter(c => $('cb-' + c).checked); }
 function setPreset(list) { for (const c of SEAT_ORDER) $('cb-' + c).checked = list.includes(c); updateOrder(); }
@@ -459,6 +624,7 @@ function updateOrder() {
   $('order').textContent = p.length >= 2
     ? 'Turn order (clockwise): ' + p.map((c, i) => `P${i + 1} ${cap(c)}`).join(' → ') + ' → P1'
     : 'Pick at least 2 players.';
+  if (!running) { snapView(p, emptyState()); render(); }
 }
 SEAT_ORDER.forEach(c => $('cb-' + c).addEventListener('change', updateOrder));
 $('preset2').onclick = () => setPreset(['yellow', 'red']);
@@ -466,128 +632,61 @@ $('preset3').onclick = () => setPreset(['yellow', 'green', 'blue']);
 $('preset4').onclick = () => setPreset(SEAT_ORDER);
 setPreset(['yellow', 'green', 'blue']);
 
-// ----- board drawing (pixel-accurate positions on sorry-board.png) -----
-// All coordinates are fractions 0..1 of the canvas (= board image).
-// Measured from the 600×600 source image; adjust if your image differs.
-
-// 60 main-track squares, clockwise from Yellow's Start at top-left (t=0).
-// Each side has 15 squares; spacing ≈ 0.0547 of image width.
-(function buildTrackXY() {
-  const S = 0.0547; // square spacing as fraction
-  const TOP_Y = 0.088, BOT_Y = 0.912, LEFT_X = 0.088, RIGHT_X = 0.912;
-  const coords = [];
-  // Top row: left → right (t 0..14), Yellow Start is t=0
-  for (let i = 0; i < 15; i++) coords.push([LEFT_X + i * S, TOP_Y]);
-  // Right col: top → bottom (t 15..29), Green Start is t=15
-  for (let i = 0; i < 15; i++) coords.push([RIGHT_X, TOP_Y + i * S]);
-  // Bottom row: right → left (t 30..44), Red Start is t=30
-  for (let i = 0; i < 15; i++) coords.push([RIGHT_X - i * S, BOT_Y]);
-  // Left col: bottom → top (t 45..59), Blue Start is t=45
-  for (let i = 0; i < 15; i++) coords.push([LEFT_X, BOT_Y - i * S]);
-  window._TRACK_XY = coords;
-})();
-
-// Safety zone coords for each colour: 5 squares (progress 61..65), going inward.
-// Each zone runs along the colour's side, one row in from the edge.
-const _SAFE_XY = {
-  yellow: Array.from({length:5}, (_,i) => [0.088 + (i+1)*0.0547*1.5, 0.160]),
-  green:  Array.from({length:5}, (_,i) => [0.838, 0.088 + (i+1)*0.0547*1.5]),
-  red:    Array.from({length:5}, (_,i) => [0.912 - (i+1)*0.0547*1.5, 0.838]),
-  blue:   Array.from({length:5}, (_,i) => [0.160, 0.912 - (i+1)*0.0547*1.5]),
+// ----- live watched game (a sample only; not counted in the statistics) -----
+const CARD_DESC = {
+  1: 'Move out of Start, or forward 1', 2: 'Move out of Start, or forward 2 · draw again', 3: 'Forward 3',
+  4: 'Backward 4', 5: 'Forward 5', 7: 'Forward 7, or split between two pawns', 8: 'Forward 8',
+  10: 'Forward 10, or back 1', 11: 'Forward 11, or swap with an opponent', 12: 'Forward 12',
+  S: 'Take a pawn from Start and bump an opponent'
 };
 
-// Home area centres (progress 66) for 4 pawns.
-const _HOME_XY = {
-  yellow: [[0.215,0.215],[0.270,0.215],[0.215,0.270],[0.270,0.270]],
-  green:  [[0.730,0.215],[0.785,0.215],[0.730,0.270],[0.785,0.270]],
-  red:    [[0.730,0.730],[0.785,0.730],[0.730,0.785],[0.785,0.785]],
-  blue:   [[0.215,0.730],[0.270,0.730],[0.215,0.785],[0.270,0.785]],
-};
+function watchInterval() { return 1100 - (+$('speed').value) * 100; }   // 1000 ms (slow) .. 100 ms (fast)
 
-// Start area offsets (progress 0, pawns waiting) — 4 slots near each corner.
-const _START_XY = {
-  yellow: [[0.108,0.200],[0.163,0.200],[0.108,0.253],[0.163,0.253]],
-  green:  [[0.837,0.200],[0.892,0.200],[0.837,0.253],[0.892,0.253]],
-  red:    [[0.837,0.747],[0.892,0.747],[0.837,0.800],[0.892,0.800]],
-  blue:   [[0.108,0.747],[0.163,0.747],[0.108,0.800],[0.163,0.800]],
-};
-
-function pawnXY(c, p, i) {
-  if (p === 0)              return _START_XY[c][i];
-  if (p <= LAST_MAIN)       return window._TRACK_XY[trackIdx(c, p)];
-  if (p <= SAFE_LAST)       return _SAFE_XY[c][p - SAFE_FIRST];
-  return _HOME_XY[c][i];
-}
-
-const boardImg = new Image();
-let boardReady = false;
-boardImg.onload = () => {
-  boardReady = true;
-  drawBoard(watch ? watch.state : emptyState(), watch ? watch.players : ['yellow', 'green', 'blue']);
-};
-boardImg.src = 'sorry-board.png';
-
-function drawBoard(s, players) {
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-  if (boardReady) {
-    ctx.drawImage(boardImg, 0, 0, W, H);
-  } else {
-    ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#6b7280'; ctx.font = '16px system-ui';
-    ctx.fillText('Loading board image…', 20, 240);
-  }
-  for (const c of players) {
-    s.pos[c].forEach((p, i) => {
-      const [fx, fy] = pawnXY(c, p, i);
-      const x = fx * W, y = fy * H;
-      // shadow for visibility
-      ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 4;
-      ctx.beginPath(); ctx.arc(x, y, 10, 0, 2 * Math.PI);
-      ctx.fillStyle = COLOR_HEX[c]; ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
-      // pawn number label
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(i + 1, x, y);
-    });
-  }
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-}
-
-// ----- live watched game (sample only, not counted in the statistics) -----
 function startWatch(players) {
-  watch = { players, rng: mulberry32((Math.random() * 4294967296) >>> 0), gen: null, state: emptyState(), text: 'Shuffling the deck…', games: 0, hold: 0 };
-  watchTimer = setInterval(stepWatch, +$('speed').value);
+  watch = { players, rng: mulberry32((Math.random() * 4294967296) >>> 0), gen: null, prev: emptyState(), games: 0, hold: 0 };
+  snapView(players, watch.prev);
+  watchTimer = setInterval(stepWatch, watchInterval());
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(rafLoop);
 }
+
+function setCard(card) {
+  const f = $('cardFace');
+  f.textContent = card === null ? '?' : (card === 'S' ? 'Sorry!' : card);
+  f.classList.toggle('sorry', card === 'S');
+  $('cardDesc').textContent = card === null ? '' : CARD_DESC[card];
+}
+
 function stepWatch() {
   if (!watch) return;
-  if (watch.hold > 0) { watch.hold--; }
-  else {
-    if (!watch.gen) {
-      watch.gen = gameSteps(watch.rng, watch.players);
-      watch.state = emptyState();
-      watch.text = 'Game starting';
-    }
-    const r = watch.gen.next();
-    if (r.done) {
-      watch.gen = null;
-      watch.games++;
-      watch.text = r.value.winner ? `${cap(r.value.winner)} wins on turn ${r.value.turns}!` : 'Turn limit reached, no winner';
-      watch.hold = 8;
-    } else {
-      watch.state = r.value.s;
-      watch.text = `Turn ${r.value.turn}: ${r.value.text}`;
-    }
+  const interval = watchInterval();
+  if (watch.hold > 0) { watch.hold--; return; }
+  if (!watch.gen) {
+    watch.gen = gameSteps(watch.rng, watch.players);
+    watch.prev = emptyState();
+    snapView(watch.players, watch.prev);
+    setCard(null);
+    $('turnWho').textContent = 'Shuffling the deck…';
+    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). Pawns wait on their Start circles.`;
   }
-  drawBoard(watch.state, watch.players);
-  $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in stats). ${watch.text}`;
-  $('homeCounts').textContent = watch.players.map(c =>
-    `${cap(c)}: ${watch.state.pos[c].filter(p => p === HOME).length}/4 home`).join('   ·   ');
+  const r = watch.gen.next();
+  if (r.done) {
+    watch.gen = null; watch.games++;
+    $('turnWho').textContent = r.value.winner ? `${cap(r.value.winner)} wins!` : 'No winner (turn limit)';
+    watch.hold = Math.ceil(2500 / interval);
+  } else {
+    const v = r.value;
+    animateTo(watch.prev, v.s, Math.max(120, interval * 0.85));
+    watch.prev = v.s;
+    setCard(v.card);
+    $('turnWho').innerHTML = `<span class="dot" style="background:${COLOR_HEX[v.c]}"></span>${cap(v.c)}'s turn · turn ${v.turn}`;
+    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). ${v.text}`;
+  }
+  $('homeCounts').textContent = 'In Home: ' + watch.players.map(c =>
+    `${cap(c)} ${watch.prev.pos[c].filter(p => p === HOME).length}/4`).join(' · ');
 }
 $('speed').oninput = () => {
-  if (watchTimer) { clearInterval(watchTimer); watchTimer = setInterval(stepWatch, +$('speed').value); }
+  if (watchTimer) { clearInterval(watchTimer); watchTimer = setInterval(stepWatch, watchInterval()); }
 };
 
 // ----- running the batch -----
@@ -619,11 +718,18 @@ function tick() {
 }
 
 function setRunning(on) {
+  running = on;
   $('run').disabled = on;
   $('stop').disabled = !on;
   $('spin').classList.toggle('on', on);
   SEAT_ORDER.forEach(c => $('cb-' + c).disabled = on);
   ['preset2', 'preset3', 'preset4', 'games', 'seed'].forEach(id => $(id).disabled = on);
+}
+
+function strHash(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h;
 }
 
 $('run').onclick = () => {
@@ -646,19 +752,17 @@ $('run').onclick = () => {
 
 $('stop').onclick = () => { stopFlag = true; };
 
-function strHash(str) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
-  return h;
-}
-
 function finish() {
   clearInterval(watchTimer); watchTimer = null; watch = null;
-  run.total = run.done; // in case the run was stopped early
+  cancelAnimationFrame(rafId); rafId = 0;
+  const stopped = stopFlag && run.done < run.total;
+  run.total = run.done;
   renderLive();
   setRunning(false);
-  $('status').textContent = stopFlag && run.done < run.total
-    ? `Stopped after ${run.done.toLocaleString()} games` : `Finished ${run.done.toLocaleString()} games`;
+  $('status').textContent = stopped ? `Stopped after ${run.done.toLocaleString()} games` : `Finished ${run.done.toLocaleString()} games`;
+  $('turnWho').textContent = 'Done';
+  $('watchText').textContent = 'Simulation finished. Run again to watch another sample game.';
+  snapView(run.players, emptyState()); setCard(null); render();
   showResults();
 }
 
@@ -680,16 +784,18 @@ function showResults() {
     `average length: ${(run.turnSum / run.total).toFixed(1)} player turns · seed: ${run.seed} · ` +
     `equal odds would be ${(100 / players.length).toFixed(2)}% each.`;
   const v = $('verdict');
-  const top = players.slice().sort((a, b) => run.wins[b] - run.wins[a])[0];
+  const sorted = players.slice().sort((a, b) => run.wins[b] - run.wins[a]);
+  const top = sorted[0], low = sorted[sorted.length - 1];
   const topShare = decided ? run.wins[top] / decided * 100 : 0;
+  const lowShare = decided ? run.wins[low] / decided * 100 : 0;
   const fairShare = 100 / players.length;
-  const techNote = `<div class="note" style="font-weight:400;margin-top:.4rem">Technical detail: chi-square p-value = ${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)} (below 0.05 counts as unfair).</div>`;
+  const tech = `<div class="note" style="margin-top:.4rem">Technical detail: chi-square p-value = ${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)} (below 0.05 counts as unfair).</div>`;
   if (p < 0.05) {
     v.className = 'verdict unfair';
-    v.innerHTML = `<b>Not fair.</b> ${cap(top)} wins ${topShare.toFixed(1)}% of games, but in a fair game each player would win about ${fairShare.toFixed(1)}%. A gap this large would almost never happen by chance, so the seating or turn order gives someone an edge.` + techNote;
+    v.innerHTML = `<b>Not fair.</b> ${cap(top)} wins ${topShare.toFixed(1)}% of games and ${cap(low)} wins only ${lowShare.toFixed(1)}%, while a fair game would give everyone about ${fairShare.toFixed(1)}%. A gap this big almost never happens by chance, so the seating or turn order gives someone an edge.` + tech;
   } else {
     v.className = 'verdict fair';
-    v.innerHTML = `<b>Looks fair.</b> Every player wins close to their fair share of ${fairShare.toFixed(1)}%. The small differences are what you'd expect from chance.` + techNote;
+    v.innerHTML = `<b>Looks fair.</b> Every player wins close to their fair share of ${fairShare.toFixed(1)}%. The small differences are what you'd expect from chance.` + tech;
   }
   $('log').textContent = (run.firstLog || []).join('\n');
   $('results').classList.remove('hidden');
