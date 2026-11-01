@@ -2,101 +2,145 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sorry! Simulator</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #f8fafc; line-height: 1.45; }
-  h1 { margin-bottom: .2rem; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 1040px; margin: 0 auto; padding: 1.2rem max(1rem, env(safe-area-inset-right)) 2rem max(1rem, env(safe-area-inset-left)); color: #1f2937; background: #f8fafc; line-height: 1.45; overflow-x: hidden; }
+  h1 { margin: .2rem 0 .2rem; font-size: 1.8rem; }
   h3 { margin: 0 0 .6rem 0; }
-  .sub { color: #555; margin-top: 0; }
-  .card { background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
-  label { display: inline-block; margin-right: 1.2rem; margin-top: .4rem; }
-  input[type=number], input[type=text] { width: 120px; padding: .35rem .4rem; font-size: 1rem; }
-  button { padding: .5rem 1.1rem; font-size: 1rem; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; margin: .25rem .3rem .25rem 0; }
+  .sub { color: #555; margin: 0 0 .6rem; }
+  .card { background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 1rem 1.1rem; margin: 1rem 0; }
+  .note { font-size: .92rem; color: #4b5563; }
+  .hidden { display: none !important; }
+
+  /* controls */
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; }
+  button { font: inherit; padding: .65rem 1.1rem; min-height: 44px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; touch-action: manipulation; }
   button.secondary { background: #e5e7eb; color: #111827; }
   button.danger { background: #dc2626; }
-  button:disabled { background: #9ca3af; cursor: default; }
-  .seats label { margin-right: 1rem; font-weight: 600; }
-  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-  .note { font-size: .92rem; color: #4b5563; }
+  button:disabled { background: #9ca3af; color: #fff; cursor: default; }
+  button.secondary:disabled { background: #eef0f3; color: #9ca3af; }
+  input[type=number], input[type=text], select { font: inherit; font-size: 16px; padding: .5rem .55rem; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; width: 100%; }
+  .field { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+  .field > span { font-size: .85rem; font-weight: 600; color: #374151; }
+  .seats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin: .8rem 0 .4rem; }
+  .seat { border: 2px solid #e5e7eb; border-radius: 10px; padding: .55rem .6rem; display: flex; flex-direction: column; gap: .4rem; transition: border-color .15s, background .15s; }
+  .seat.on { background: #f8fafc; }
+  .seat label { display: flex; align-items: center; gap: .5rem; font-weight: 700; min-height: 32px; cursor: pointer; }
+  .seat input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+  .seat select { min-height: 38px; padding: .3rem .4rem; }
+  .settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; margin-top: .5rem; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex: 0 0 auto; }
 
-  /* Live area: fixed two-column grid so nothing jumps or resizes while running */
-  .live { display: grid; grid-template-columns: 460px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
-  .boardCol { width: 460px; }
-  #board { display: block; width: 460px; height: 460px; border-radius: 8px; background: #e5e7eb; }
+  /* live area (sizes are fixed so nothing jumps while running) */
+  .liveHead { margin-bottom: .7rem; }
+  .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 700; min-height: 1.6em; }
+  .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; visibility: hidden; flex: 0 0 auto; }
+  .spinner.on { visibility: visible; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #progress { height: 12px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: .4rem 0; }
+  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .15s; }
+  .live { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  .boardCol { min-width: 0; }
+  #board { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 8px; background: #e5e7eb; touch-action: pan-y; }
   .turnRow { display: flex; gap: .8rem; align-items: center; height: 84px; margin-top: .5rem; }
   .cardFace { flex: 0 0 56px; width: 56px; height: 78px; border: 2px solid #374151; border-radius: 7px; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.6rem; color: #111827; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
   .cardFace.sorry { color: #dc2626; font-size: .95rem; }
   .turnInfo { min-width: 0; overflow: hidden; }
   #turnWho { font-weight: 700; height: 1.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #cardDesc { height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #watchText { height: 4.4em; overflow: hidden; }
-  #homeCounts { height: 1.5em; overflow: hidden; white-space: nowrap; }
-  .speedRow { height: 2em; }
-  .side { min-width: 0; }
-  #bars { min-height: 190px; margin-top: .8rem; }
-  #progress { height: 12px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: .4rem 0; }
-  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#16a34a); transition: width .15s; }
-  .spinRow { display: flex; align-items: center; gap: .6rem; font-weight: 600; min-height: 1.6em; }
-  .spinner { width: 18px; height: 18px; border: 3px solid #d1d5db; border-top-color: #2563eb; border-radius: 50%; visibility: hidden; }
-  .spinner.on { visibility: visible; animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  #cardDesc { height: 2.8em; overflow: hidden; line-height: 1.4; }
+  #watchText { height: 4.6em; overflow: hidden; }
+  #homeCounts { height: 2.9em; overflow: hidden; }
+  .speedRow { display: flex; align-items: center; gap: .6rem; height: 2.4em; }
+  .speedRow input { flex: 1; min-width: 0; }
+  #bars { min-height: 190px; }
   .bar-row { margin: .45rem 0; height: 40px; }
-  .bar-label { font-size: .92rem; display: flex; justify-content: space-between; height: 1.3em; }
+  .bar-label { font-size: .95rem; display: flex; justify-content: space-between; height: 1.3em; gap: .5rem; }
   .bar-track { height: 14px; background: #eef0f3; border-radius: 7px; overflow: hidden; }
   .bar-fill { height: 100%; transition: width .3s ease-out; }
-  @media (max-width: 800px) {
-    .live { grid-template-columns: minmax(0, 1fr); }
-    .boardCol { width: 100%; }
-    #board { width: 100%; height: auto; aspect-ratio: 1 / 1; }
-  }
 
+  /* results */
+  .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { border-collapse: collapse; width: 100%; margin-top: .4rem; }
-  th, td { padding: .5rem .6rem; border-bottom: 1px solid #eef0f3; text-align: left; }
+  th, td { padding: .55rem .6rem; border-bottom: 1px solid #eef0f3; text-align: left; white-space: nowrap; }
   th { background: #f3f4f6; font-weight: 600; }
-  .verdict { padding: .7rem .9rem; border-radius: 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin: .9rem 0; }
+  .tile { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem .7rem; }
+  .tile b { display: block; font-size: 1.25rem; }
+  .tile span { font-size: .8rem; color: #4b5563; }
+  .verdict { padding: .8rem .95rem; border-radius: 8px; }
   .fair { background: #ecfdf5; color: #065f46; }
   .unfair { background: #fef2f2; color: #991b1b; }
-  pre { background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 8px; max-height: 360px; overflow: auto; font-size: .8rem; white-space: pre-wrap; }
+  pre { background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 8px; max-height: 360px; overflow: auto; font-size: .8rem; white-space: pre-wrap; word-break: break-word; }
   details { margin-top: .3rem; }
-  summary { cursor: pointer; font-weight: 600; }
+  summary { cursor: pointer; font-weight: 600; min-height: 32px; }
   ul { padding-left: 1.2rem; }
-  .hidden { display: none; }
+
+  @media (max-width: 860px) {
+    .live { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .side { order: -1; }
+    .seats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    body { padding-top: .8rem; }
+    h1 { font-size: 1.5rem; }
+    .card { padding: .85rem .8rem; border-radius: 10px; margin: .8rem 0; }
+    .settings { grid-template-columns: minmax(0, 1fr); }
+    .row button { flex: 1 1 0; }
+    #runRow button { flex: 1 1 100%; }
+    th, td { padding: .5rem .45rem; font-size: .92rem; }
+    .cardFace { flex-basis: 50px; width: 50px; height: 70px; }
+    .cardFace.sorry { font-size: .75rem; }
+    .turnRow { height: 78px; }
+    #bars { min-height: 180px; }
+  }
 </style>
 </head>
 <body>
 
 <h1>Sorry! Simulator</h1>
-<p class="sub">Simulate thousands of games with 2, 3 or 4 players: real deck, bumping, colored slides and safety zones.</p>
+<p class="sub">Simulate thousands of games of Sorry! with 2, 3 or 4 players and see who really has the edge.</p>
 
 <div class="card">
   <h3>1. Choose players</h3>
-  <div>
+  <div class="row">
     <button class="secondary" id="preset2">2 players</button>
     <button class="secondary" id="preset3">3 players</button>
     <button class="secondary" id="preset4">4 players</button>
   </div>
-  <div class="seats" style="margin-top:.5rem">
-    <label><input type="checkbox" id="cb-yellow"> Yellow</label>
-    <label><input type="checkbox" id="cb-green"> Green</label>
-    <label><input type="checkbox" id="cb-red"> Red</label>
-    <label><input type="checkbox" id="cb-blue"> Blue</label>
+  <div class="seats" id="seats">
+    <div class="seat" data-c="yellow"><label><input type="checkbox" id="cb-yellow"><span class="dot" style="background:#f2b705"></span>Yellow</label><select id="st-yellow" aria-label="Yellow strategy"><option value="smart">Smart player</option><option value="random">Random player</option></select></div>
+    <div class="seat" data-c="green"><label><input type="checkbox" id="cb-green"><span class="dot" style="background:#2f9e44"></span>Green</label><select id="st-green" aria-label="Green strategy"><option value="smart">Smart player</option><option value="random">Random player</option></select></div>
+    <div class="seat" data-c="red"><label><input type="checkbox" id="cb-red"><span class="dot" style="background:#d92b2b"></span>Red</label><select id="st-red" aria-label="Red strategy"><option value="smart">Smart player</option><option value="random">Random player</option></select></div>
+    <div class="seat" data-c="blue"><label><input type="checkbox" id="cb-blue"><span class="dot" style="background:#1c7ed6"></span>Blue</label><select id="st-blue" aria-label="Blue strategy"><option value="smart">Smart player</option><option value="random">Random player</option></select></div>
   </div>
-  <p class="note" id="order"></p>
-  <h3 style="margin-top:1rem">2. Settings</h3>
-  <label>Games <input type="number" id="games" value="10000" min="10" max="1000000"></label>
-  <label>Seed <input type="text" id="seed" placeholder="random"></label>
-  <div style="margin-top:.6rem">
+  <p class="note" id="order" style="margin:.2rem 0 0"></p>
+
+  <h3 style="margin-top:1.1rem">2. Settings</h3>
+  <div class="settings">
+    <label class="field"><span>Games to simulate</span><input type="number" id="games" value="10000" min="10" max="1000000" inputmode="numeric"></label>
+    <label class="field"><span>Who goes first?</span>
+      <select id="firstMode"><option value="fixed">Always P1 (turn order below)</option><option value="random">Random player each game</option></select></label>
+    <label class="field"><span>Seed (optional)</span><input type="text" id="seed" placeholder="random" autocomplete="off" autocapitalize="off"></label>
+  </div>
+  <div class="row" id="runRow" style="margin-top:.8rem">
     <button id="run">Run simulation</button>
     <button id="stop" class="danger" disabled>Stop</button>
   </div>
 </div>
 
 <div class="card">
+  <div class="liveHead">
+    <div class="spinRow"><div class="spinner" id="spin"></div><span id="status">Idle</span></div>
+    <div id="progress"><div id="progressBar"></div></div>
+    <div class="note" id="rate">&nbsp;</div>
+  </div>
   <div class="live">
     <div class="boardCol">
-      <canvas id="board" width="920" height="920"></canvas>
+      <canvas id="board" width="920" height="920" role="img" aria-label="Sorry! board showing a sample game"></canvas>
       <div class="turnRow">
         <div class="cardFace" id="cardFace">?</div>
         <div class="turnInfo">
@@ -106,12 +150,9 @@
       </div>
       <div class="note" id="watchText">Press “Run simulation” to start. A sample game is played live on the board (it isn’t counted in the stats).</div>
       <div class="note" id="homeCounts"></div>
-      <div class="speedRow note">Slow <input type="range" id="speed" min="1" max="10" value="6"> Fast</div>
+      <div class="speedRow note"><span>Slow</span><input type="range" id="speed" min="1" max="10" value="6" aria-label="Watch speed"><span>Fast</span></div>
     </div>
     <div class="side">
-      <div class="spinRow"><div class="spinner" id="spin"></div><span id="status">Idle</span></div>
-      <div id="progress"><div id="progressBar"></div></div>
-      <div class="note" id="rate">&nbsp;</div>
       <div id="bars"></div>
     </div>
   </div>
@@ -119,12 +160,16 @@
 
 <div class="card hidden" id="results">
   <h3>Results</h3>
-  <table>
-    <thead><tr><th>Player</th><th>Wins</th><th>Win rate (of games with a winner) ± 95% CI</th></tr></thead>
-    <tbody id="rows"></tbody>
-  </table>
+  <div class="tableWrap">
+    <table>
+      <thead><tr><th>Player</th><th>Wins</th><th>Win rate ± 95% CI</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div class="verdict" id="verdict" aria-live="polite"></div>
   <p class="note" id="meta"></p>
-  <div class="verdict" id="verdict"></div>
+  <div class="row"><button class="secondary" id="copy">Copy results</button></div>
 </div>
 
 <div class="card hidden" id="logCard">
@@ -134,7 +179,7 @@
 
 <div class="card">
   <details>
-    <summary>Rules implemented, and what is verified vs. assumed</summary>
+    <summary>How it works, and what is verified vs. assumed</summary>
     <ul class="note">
       <li><b>Taken from the board photo:</b> 60 track squares (15 per side, clockwise: yellow top, green right, red bottom, blue left). Each color's Start circle sits beside the 5th square of its side (the “exit square”), the Safety Zone lane turns off at the 3rd square of its side, and every side has two slides: a 4-square slide starting on the 2nd square and a 5-square slide starting on the 10th. Each Safety Zone has 5 squares and then Home.</li>
       <li>Deck: 45 cards. Five 1s; four each of 2, 3, 4, 5, 7, 8, 10, 11, 12 and Sorry!. The discard pile is reshuffled when the deck runs out.</li>
@@ -144,15 +189,16 @@
       <li>4 moves back 4. 10 moves forward 10 or back 1. 7 moves one pawn 7 or splits between two pawns. 11 moves forward 11 or swaps with an opponent's main-track pawn. A backward move from near your exit square can carry a pawn behind it, close to your Safety Zone entrance.</li>
       <li>Sorry! takes a pawn from Start and puts it on an opponent's main-track pawn, sending that one back to Start. With no pawn in Start or no target, the card is forfeited.</li>
       <li>If no move is legal the card is forfeited. Home must be reached by exact count. Pawns in a Safety Zone can only move backward within it (assumption).</li>
-      <li>Every player uses the same decision rule (maximize your progress minus 0.7 × each opponent's progress, random tie-breaks), so results show the effect of seating and turn order, not different skill levels. Real players may play differently.</li>
-      <li>Turn order is clockwise starting from the first selected color in the order yellow, green, red, blue. Unused colors' Start squares stay empty.</li>
+      <li><b>Smart player:</b> looks at every legal move and picks the one that leaves the best position: more progress for itself, less for opponents, a penalty for pawns that opponents are likely to hit next turn, and a bonus for pawns that threaten opponents. <b>Random player:</b> picks any legal move at random. Mix them to test how much skill matters compared with seating. Real people may play differently.</li>
+      <li><b>Who goes first:</b> “Always P1” follows the turn order shown (clockwise from the first selected color). “Random” picks the starting player each game, which separates the effect of <i>seat position</i> from the effect of <i>moving first</i>.</li>
+      <li>Games are split into fixed batches and simulated in background threads (when your browser supports it), so the page stays smooth. The same seed gives the same results on any device.</li>
       <li>Games stop after 3,000 player turns and count as “no winner.”</li>
     </ul>
   </details>
 </div>
 
-<script>
-// ===================== CORE (no DOM) =====================
+<!-- ===================== CORE (no DOM; also copied into the background workers) ===================== -->
+<script id="core">
 const SEAT_ORDER = ['yellow', 'green', 'red', 'blue'];       // clockwise, starting at top
 const SIDE = { yellow: 0, green: 1, red: 2, blue: 3 };
 const EXIT_IDX = { yellow: 4, green: 19, red: 34, blue: 49 }; // track square next to each Start circle
@@ -163,6 +209,7 @@ const LAST_MAIN = 60, SAFE_FIRST = 61, SAFE_LAST = 65, HOME = 66;
 const MAX_TURNS = 3000;
 const FWD = new Set([1, 2, 3, 5, 7, 8, 10, 11, 12]);
 const DECK_COUNTS = [[1, 5], [2, 4], [3, 4], [4, 4], [5, 4], [7, 4], [8, 4], [10, 4], [11, 4], [12, 4], ['S', 4]];
+const STATS = { bumps: 0, slides: 0 };
 
 // Slides: two per side. 4-long (2nd to 5th square) and 5-long (10th to 14th square).
 const SLIDE_AT = new Array(TRACK).fill(null);
@@ -214,7 +261,7 @@ function bumpAt(s, c, t, players) {
     if (o === c) continue;
     for (let j = 0; j < 4; j++) {
       const q = s.pos[o][j];
-      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === t) s.pos[o][j] = 0;
+      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === t) { s.pos[o][j] = 0; STATS.bumps++; }
     }
   }
 }
@@ -226,13 +273,14 @@ function settleSlide(s, c, i, players) {
   if (p < 1 || p > LAST_MAIN) return;
   const t = trackIdx(c, p), sl = SLIDE_AT[t];
   if (!sl || sl.color === c) return;
+  STATS.slides++;
   const len = (sl.tail - t + TRACK) % TRACK;
   for (let k = 1; k <= len; k++) {
     const u = (t + k) % TRACK;
     for (const o of players) for (let j = 0; j < 4; j++) {
       if (o === c && j === i) continue;
       const q = s.pos[o][j];
-      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === u) s.pos[o][j] = 0;
+      if (q >= 1 && q <= LAST_MAIN && trackIdx(o, q) === u) { s.pos[o][j] = 0; STATS.bumps++; }
     }
   }
   s.pos[c][i] = progressAt(c, sl.tail);
@@ -321,7 +369,7 @@ function applyMove(s0, m, players) {
     }
     case 'sorry': {
       const q = s.pos[m.o][m.j], t = trackIdx(m.o, q);
-      s.pos[m.o][m.j] = 0;
+      s.pos[m.o][m.j] = 0; STATS.bumps++;
       return landMain(s, c, m.i, progressAt(c, t), players);
     }
     case 'split': {
@@ -332,6 +380,7 @@ function applyMove(s0, m, players) {
   return null;
 }
 
+// ---- position evaluation ----
 function val(p) {
   if (p === 0) return 0;
   if (p <= LAST_MAIN) return 8 + p;
@@ -339,7 +388,8 @@ function val(p) {
   return 100;
 }
 
-function evalFor(s, c, players) {
+// Simple evaluation (used as a baseline in tests): my progress minus 0.7 x opponents' progress.
+function evalBasic(s, c, players) {
   let mine = 0, opp = 0;
   for (const o of players) for (const p of s.pos[o]) {
     if (o === c) mine += val(p); else opp += val(p);
@@ -347,12 +397,57 @@ function evalFor(s, c, players) {
   return mine - 0.7 * opp;
 }
 
-function chooseMove(s, c, card, rng, players) {
+// Chance that an opponent hits a pawn exactly d squares ahead of it with one card (45-card deck).
+const CARD_N = { 1: 5, 2: 4, 3: 4, 5: 4, 7: 4, 8: 4, 10: 4, 11: 4, 12: 4 };
+function hitChance(d) {
+  if (d < 1 || d > 12) return 0;
+  let n = CARD_N[d] || 0;
+  if (d <= 6) n += 1.6;               // a 7 can also be split to reach short distances
+  return n / 45;
+}
+
+// Smarter evaluation: basic score, minus the expected loss from pawns an opponent can hit next
+// turn, plus a smaller bonus for opponent pawns that I threaten.
+function evalSmart(s, c, players) {
+  let score = 0;
+  const mineT = [], oppT = [];
+  for (const o of players) for (let j = 0; j < 4; j++) {
+    const p = s.pos[o][j], v = val(p);
+    if (o === c) score += v; else score -= 0.7 * v;
+    if (p >= 1 && p <= LAST_MAIN) {
+      const it = { t: trackIdx(o, p), v, room: LAST_MAIN - p };
+      if (o === c) mineT.push(it); else oppT.push(it);
+    }
+  }
+  for (const a of mineT) {
+    let risk = 0;
+    for (const b of oppT) {
+      const d = (a.t - b.t + TRACK) % TRACK;                      // squares b must move forward to reach a
+      if (d <= b.room) risk += hitChance(d);
+      const back = (b.t - a.t + TRACK) % TRACK;                   // b is ahead of a: a 4 or a back-1 hits
+      if (back === 4) risk += 4 / 45; else if (back === 1) risk += 2 / 45;
+    }
+    score -= risk * a.v;
+  }
+  for (const b of oppT) {
+    let threat = 0;
+    for (const a of mineT) {
+      const d = (b.t - a.t + TRACK) % TRACK;
+      if (d <= a.room) threat += hitChance(d);
+    }
+    score += 0.35 * threat * b.v;
+  }
+  return score;
+}
+
+function chooseMove(s, c, card, rng, players, strategy) {
+  const evalFn = strategy === 'basic' ? evalBasic : evalSmart;
   let best = -Infinity, list = [];
   for (const m of candidates(s, c, card, players)) {
     const s2 = applyMove(s, m, players);
     if (!s2) continue;
-    const e = evalFor(s2, c, players);
+    if (strategy === 'random') { list.push({ m, s2 }); continue; }
+    const e = evalFn(s2, c, players);
     if (e > best + 1e-9) { best = e; list = [{ m, s2 }]; }
     else if (Math.abs(e - best) <= 1e-9) list.push({ m, s2 });
   }
@@ -372,11 +467,6 @@ function describe(m) {
   return '';
 }
 
-function countOnTrack(s, players) {
-  let n = 0;
-  for (const o of players) for (const p of s.pos[o]) if (p >= 1 && p <= LAST_MAIN) n++;
-  return n;
-}
 function countInStart(s, players) {
   let n = 0;
   for (const o of players) for (const p of s.pos[o]) if (p === 0) n++;
@@ -384,7 +474,10 @@ function countInStart(s, players) {
 }
 
 // Generator: yields after every card action, returns { winner, turns }.
-function* gameSteps(rng, players) {
+// startIdx = index (into players) of the player who moves first.
+function* gameSteps(rng, players, strategies, startIdx) {
+  strategies = strategies || {};
+  startIdx = startIdx || 0;
   let s = emptyState();
   const deck = shuffle(buildDeck(), rng), discard = [];
   const draw = () => {
@@ -396,14 +489,14 @@ function* gameSteps(rng, players) {
   };
   const N = players.length;
   for (let t = 0; t < MAX_TURNS; t++) {
-    const c = players[t % N];
+    const c = players[(startIdx + t) % N];
     let again = true;
     while (again) {
       again = false;
       const card = draw();
       discard.push(card);
       if (card === 2) again = true;
-      const pick = chooseMove(s, c, card, rng, players);
+      const pick = chooseMove(s, c, card, rng, players, strategies[c] || 'smart');
       let text;
       if (pick) {
         const bumped = countInStart(pick.s2, players) - countInStart(s, players);
@@ -419,9 +512,9 @@ function* gameSteps(rng, players) {
   return { winner: null, turns: MAX_TURNS };
 }
 
-function playGame(rng, players, wantLog) {
-  const gen = gameSteps(rng, players);
-  const log = wantLog ? [] : null;
+function playGame(rng, players, strategies, startIdx, wantLog) {
+  const gen = gameSteps(rng, players, strategies, startIdx);
+  const log = wantLog ? [`${players[startIdx]} moves first`] : null;
   let r = gen.next();
   while (!r.done) {
     if (log) log.push(`T${r.value.turn} ${r.value.text}`);
@@ -431,20 +524,22 @@ function playGame(rng, players, wantLog) {
   return { winner: r.value.winner, turns: r.value.turns, log };
 }
 
-function createRun(total, seed, players) {
-  return {
-    total, done: 0, players, rng: mulberry32(seed),
-    wins: { yellow: 0, green: 0, red: 0, blue: 0, none: 0 },
-    turnSum: 0, firstLog: null
-  };
-}
-
-function runOne(run) {
-  const r = playGame(run.rng, run.players, run.done === 0);
-  run.wins[r.winner || 'none']++;
-  run.turnSum += r.turns;
-  if (run.done === 0) run.firstLog = r.log;
-  run.done++;
+// Simulates one fixed batch of games. Used by the background workers and by the fallback.
+function simulateChunk(job) {
+  const rng = mulberry32(job.seed), N = job.players.length;
+  const out = { id: job.id, games: job.count, wins: { yellow: 0, green: 0, red: 0, blue: 0, none: 0 },
+    turnSum: 0, bumps: 0, slides: 0, firstWins: 0, log: null };
+  STATS.bumps = 0; STATS.slides = 0;
+  for (let g = 0; g < job.count; g++) {
+    const startIdx = job.randomStart ? Math.floor(rng() * N) : 0;
+    const r = playGame(rng, job.players, job.strategies, startIdx, job.wantLog && g === 0);
+    out.wins[r.winner || 'none']++;
+    out.turnSum += r.turns;
+    if (r.winner && r.winner === job.players[startIdx]) out.firstWins++;
+    if (r.log) out.log = r.log;
+  }
+  out.bumps = STATS.bumps; out.slides = STATS.slides;
+  return out;
 }
 
 // Returns null if the state is consistent, otherwise a description of the problem.
@@ -489,17 +584,18 @@ function chi2Survival(x, df) {
   const z = (Math.cbrt(x / df) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df));
   return 0.5 * erfc(z / Math.SQRT2);
 }
-// ===================== END CORE =====================
+</script>
 
-
-// ===================== UI =====================
+<!-- ===================== UI ===================== -->
+<script>
 const $ = id => document.getElementById(id);
 const COLOR_HEX = { yellow: '#f2b705', green: '#2f9e44', red: '#d92b2b', blue: '#1c7ed6', none: '#9ca3af' };
 const COLOR_DARK = { yellow: '#8a6500', green: '#17592a', red: '#7d1111', blue: '#0e467f' };
 const cap = c => c.charAt(0).toUpperCase() + c.slice(1);
 const canvas = $('board'), ctx = canvas.getContext('2d');
-const KSCALE = canvas.width / 400;           // all board geometry below is in 400 x 400 image pixels
-let run = null, watch = null, watchTimer = null, rafId = 0, stopFlag = false, startedAt = 0, running = false;
+let KSCALE = canvas.width / 400;           // board geometry below is in 400 x 400 image pixels
+let needsRedraw = true;
+let batch = null, watch = null, watchTimer = null;
 
 // ----- board geometry (measured on sorry-board.png, 400 x 400) -----
 function trackXY(t) {
@@ -529,8 +625,17 @@ function slotXY(c, p, i) {
 
 const boardImg = new Image();
 let boardReady = false;
-boardImg.onload = () => { boardReady = true; render(); };
+boardImg.onload = () => { boardReady = true; needsRedraw = true; };
 boardImg.src = 'sorry-board.png';
+
+// Keep the canvas sharp on any screen size / pixel density.
+function fitCanvas() {
+  const w = canvas.getBoundingClientRect().width || 460;
+  const px = Math.max(400, Math.min(1400, Math.round(w * (window.devicePixelRatio || 1))));
+  if (canvas.width !== px) { canvas.width = px; canvas.height = px; KSCALE = px / 400; needsRedraw = true; }
+}
+if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe(canvas);
+window.addEventListener('resize', fitCanvas);
 
 // ----- pawn view / animation -----
 const view = { players: [], pawns: {} };   // key "color-i" -> { x, y, pts, t0, dur }
@@ -542,6 +647,7 @@ function snapView(players, state) {
     const [x, y] = slotXY(c, state.pos[c][i], i);
     view.pawns[c + '-' + i] = { x, y, pts: null, t0: 0, dur: 1 };
   }
+  needsRedraw = true;
 }
 
 function pathFor(c, i, p0, p1) {
@@ -584,10 +690,9 @@ function stepPositions() {
 
 function drawPawn(c, x, y, lifted) {
   const col = COLOR_HEX[c], dark = COLOR_DARK[c];
-  const lift = lifted ? 3 : 0;
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.beginPath(); ctx.ellipse(x + 1, y + 7, 7, 2.6, 0, 0, 2 * Math.PI); ctx.fill();
-  y -= lift;
+  if (lifted) y -= 3;
   ctx.fillStyle = col; ctx.strokeStyle = dark; ctx.lineWidth = 1.1;
   ctx.beginPath();
   ctx.moveTo(x - 6.5, y + 7);
@@ -607,24 +712,36 @@ function render() {
   else { ctx.fillStyle = '#e5e7eb'; ctx.fillRect(0, 0, 400, 400); ctx.fillStyle = '#6b7280'; ctx.font = '14px system-ui'; ctx.fillText('Loading board…', 150, 200); }
   stepPositions();
   const list = [];
-  for (const k in view.pawns) { const v = view.pawns[k]; list.push({ c: k.split('-')[0], v }); }
+  for (const k in view.pawns) list.push({ c: k.split('-')[0], v: view.pawns[k] });
   list.sort((a, b) => a.v.y - b.v.y);
   for (const { c, v } of list) drawPawn(c, v.x, v.y, !!v.pts);
 }
 
 function rafLoop() {
-  render();
-  rafId = requestAnimationFrame(rafLoop);
+  let animating = false;
+  for (const k in view.pawns) if (view.pawns[k].pts) { animating = true; break; }
+  if (animating || needsRedraw) { render(); needsRedraw = false; }
+  requestAnimationFrame(rafLoop);
 }
+fitCanvas();
+requestAnimationFrame(rafLoop);
 
+// ----- setup controls -----
 function selectedPlayers() { return SEAT_ORDER.filter(c => $('cb-' + c).checked); }
+function strategies() { const o = {}; for (const c of SEAT_ORDER) o[c] = $('st-' + c).value; return o; }
 function setPreset(list) { for (const c of SEAT_ORDER) $('cb-' + c).checked = list.includes(c); updateOrder(); }
 function updateOrder() {
   const p = selectedPlayers();
+  for (const c of SEAT_ORDER) {
+    const el = document.querySelector(`.seat[data-c="${c}"]`);
+    el.classList.toggle('on', p.includes(c));
+    el.style.borderColor = p.includes(c) ? COLOR_HEX[c] : '#e5e7eb';
+    $('st-' + c).disabled = !p.includes(c) || !!batch;
+  }
   $('order').textContent = p.length >= 2
     ? 'Turn order (clockwise): ' + p.map((c, i) => `P${i + 1} ${cap(c)}`).join(' → ') + ' → P1'
     : 'Pick at least 2 players.';
-  if (!running) { snapView(p, emptyState()); render(); }
+  if (!batch) snapView(p, emptyState());
 }
 SEAT_ORDER.forEach(c => $('cb-' + c).addEventListener('change', updateOrder));
 $('preset2').onclick = () => setPreset(['yellow', 'red']);
@@ -634,7 +751,7 @@ setPreset(['yellow', 'green', 'blue']);
 
 // ----- live watched game (a sample only; not counted in the statistics) -----
 const CARD_DESC = {
-  1: 'Move out of Start, or forward 1', 2: 'Move out of Start, or forward 2 · draw again', 3: 'Forward 3',
+  1: 'Move out of Start, or forward 1', 2: 'Move out, or forward 2 · draw again', 3: 'Forward 3',
   4: 'Backward 4', 5: 'Forward 5', 7: 'Forward 7, or split between two pawns', 8: 'Forward 8',
   10: 'Forward 10, or back 1', 11: 'Forward 11, or swap with an opponent', 12: 'Forward 12',
   S: 'Take a pawn from Start and bump an opponent'
@@ -642,13 +759,13 @@ const CARD_DESC = {
 
 function watchInterval() { return 1100 - (+$('speed').value) * 100; }   // 1000 ms (slow) .. 100 ms (fast)
 
-function startWatch(players) {
-  watch = { players, rng: mulberry32((Math.random() * 4294967296) >>> 0), gen: null, prev: emptyState(), games: 0, hold: 0 };
-  snapView(players, watch.prev);
+function startWatch(cfg) {
+  watch = { cfg, rng: mulberry32((Math.random() * 4294967296) >>> 0), gen: null, prev: emptyState(), games: 0, hold: 0 };
+  snapView(cfg.players, watch.prev);
+  clearInterval(watchTimer);
   watchTimer = setInterval(stepWatch, watchInterval());
-  cancelAnimationFrame(rafId);
-  rafId = requestAnimationFrame(rafLoop);
 }
+function stopWatch() { clearInterval(watchTimer); watchTimer = null; watch = null; }
 
 function setCard(card) {
   const f = $('cardFace');
@@ -659,15 +776,16 @@ function setCard(card) {
 
 function stepWatch() {
   if (!watch) return;
-  const interval = watchInterval();
+  const interval = watchInterval(), cfg = watch.cfg, N = cfg.players.length;
   if (watch.hold > 0) { watch.hold--; return; }
   if (!watch.gen) {
-    watch.gen = gameSteps(watch.rng, watch.players);
+    const startIdx = cfg.randomStart ? Math.floor(watch.rng() * N) : 0;
+    watch.gen = gameSteps(watch.rng, cfg.players, cfg.strategies, startIdx);
     watch.prev = emptyState();
-    snapView(watch.players, watch.prev);
+    snapView(cfg.players, watch.prev);
     setCard(null);
     $('turnWho').textContent = 'Shuffling the deck…';
-    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). Pawns wait on their Start circles.`;
+    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). ${cap(cfg.players[startIdx])} moves first.`;
   }
   const r = watch.gen.next();
   if (r.done) {
@@ -682,54 +800,116 @@ function stepWatch() {
     $('turnWho').innerHTML = `<span class="dot" style="background:${COLOR_HEX[v.c]}"></span>${cap(v.c)}'s turn · turn ${v.turn}`;
     $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). ${v.text}`;
   }
-  $('homeCounts').textContent = 'In Home: ' + watch.players.map(c =>
+  $('homeCounts').textContent = 'In Home: ' + cfg.players.map(c =>
     `${cap(c)} ${watch.prev.pos[c].filter(p => p === HOME).length}/4`).join(' · ');
 }
 $('speed').oninput = () => {
   if (watchTimer) { clearInterval(watchTimer); watchTimer = setInterval(stepWatch, watchInterval()); }
 };
 
-// ----- running the batch -----
-function renderLive() {
-  const decided = run.done - run.wins.none;
-  let bars = '';
-  for (const c of run.players) {
-    const w = run.wins[c], share = decided ? w / decided : 0;
-    bars += `<div class="bar-row"><div class="bar-label"><span><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)}</span>` +
-      `<span>${w.toLocaleString()} · ${(share * 100).toFixed(1)}%</span></div>` +
-      `<div class="bar-track"><div class="bar-fill" style="width:${(share * 100).toFixed(2)}%;background:${COLOR_HEX[c]}"></div></div></div>`;
-  }
-  $('bars').innerHTML = bars;
-  const pct = run.done / run.total * 100;
-  $('progressBar').style.width = pct + '%';
-  $('status').textContent = `Simulating ${run.done.toLocaleString()} / ${run.total.toLocaleString()} games (${pct.toFixed(1)}%)`;
-  const elapsed = (performance.now() - startedAt) / 1000;
-  const rps = elapsed > 0 ? run.done / elapsed : 0;
-  const eta = rps > 0 ? (run.total - run.done) / rps : 0;
-  $('rate').textContent = `${rps.toFixed(0)} games/sec · ETA ${eta < 1 ? '<1' : Math.round(eta)} s · ${elapsed.toFixed(1)} s elapsed`;
-}
-
-function tick() {
-  const t0 = performance.now();
-  while (!stopFlag && run.done < run.total && performance.now() - t0 < 30) runOne(run);
-  renderLive();
-  if (stopFlag || run.done >= run.total) finish();
-  else setTimeout(tick, 16);
-}
-
-function setRunning(on) {
-  running = on;
-  $('run').disabled = on;
-  $('stop').disabled = !on;
-  $('spin').classList.toggle('on', on);
-  SEAT_ORDER.forEach(c => $('cb-' + c).disabled = on);
-  ['preset2', 'preset3', 'preset4', 'games', 'seed'].forEach(id => $(id).disabled = on);
-}
+// ----- batch simulation (background workers, with a main-thread fallback) -----
+const CHUNK = 200;           // games per fixed batch: keeps results identical on every device
 
 function strHash(str) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return h;
+}
+
+function makeWorkerURL() {
+  const src = document.getElementById('core').textContent +
+    '\nself.onmessage = function (e) { self.postMessage(simulateChunk(e.data)); };';
+  return URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+}
+
+function renderLive(force) {
+  const b = batch, now = performance.now();
+  if (!force && now - b.lastPaint < 90) return;
+  b.lastPaint = now;
+  const decided = b.done - b.wins.none;
+  let bars = '';
+  for (const c of b.cfg.players) {
+    const w = b.wins[c], share = decided ? w / decided : 0;
+    bars += `<div class="bar-row"><div class="bar-label"><span><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)}</span>` +
+      `<span>${w.toLocaleString()} · ${(share * 100).toFixed(1)}%</span></div>` +
+      `<div class="bar-track"><div class="bar-fill" style="width:${(share * 100).toFixed(2)}%;background:${COLOR_HEX[c]}"></div></div></div>`;
+  }
+  $('bars').innerHTML = bars;
+  const pct = b.done / b.cfg.total * 100;
+  $('progressBar').style.width = pct + '%';
+  $('status').textContent = `Simulating ${b.done.toLocaleString()} / ${b.cfg.total.toLocaleString()} games (${pct.toFixed(1)}%)`;
+  const elapsed = (now - b.startedAt) / 1000;
+  const rps = elapsed > 0 ? b.done / elapsed : 0;
+  const eta = rps > 0 ? (b.cfg.total - b.done) / rps : 0;
+  $('rate').textContent = `${Math.round(rps).toLocaleString()} games/sec · ETA ${eta < 1 ? '<1' : Math.round(eta)} s · ${elapsed.toFixed(1)} s elapsed`;
+}
+
+function mergeChunk(r) {
+  const b = batch;
+  if (!b || b.finished) return;
+  const ch = b.allChunks[r.id];
+  if (!ch || ch.merged) return;            // ignore duplicates
+  ch.merged = true;
+  for (const k in r.wins) b.wins[k] += r.wins[k];
+  b.done += r.games; b.turnSum += r.turnSum; b.bumps += r.bumps; b.slides += r.slides; b.firstWins += r.firstWins;
+  if (r.id === 0) b.firstLog = r.log;
+  renderLive(false);
+  if (b.done >= b.cfg.total) finishBatch(false);
+}
+
+function jobFor(chunk) {
+  const c = batch.cfg;
+  return { id: chunk.id, count: chunk.count, seed: chunk.seed, players: c.players, strategies: c.strategies,
+    randomStart: c.randomStart, wantLog: chunk.id === 0 };
+}
+
+function feedWorker(w) {
+  const b = batch;
+  if (!b || b.finished || b.next >= b.queue.length) return;
+  w.postMessage(jobFor(b.queue[b.next++]));
+}
+
+function runOnMainThread() {
+  const b = batch;
+  if (!b || b.finished || b.next >= b.queue.length) return;
+  mergeChunk(simulateChunk(jobFor(b.queue[b.next++])));
+  if (batch === b && !b.finished) setTimeout(runOnMainThread, 0);
+}
+
+// If background workers are unavailable or fail, finish the remaining batches on the main thread.
+function fallbackToMain() {
+  const b = batch;
+  if (!b || b.finished) return;
+  b.workers.forEach(w => w.terminate()); b.workers = [];
+  b.queue = b.allChunks.filter(c => !c.merged);
+  b.next = 0;
+  setTimeout(runOnMainThread, 0);
+}
+
+function startWorkers() {
+  const b = batch;
+  let n = Math.max(1, Math.min(6, (navigator.hardwareConcurrency || 4) - 1));
+  n = Math.min(n, b.queue.length);
+  try {
+    b.url = makeWorkerURL();
+    for (let i = 0; i < n; i++) {
+      const w = new Worker(b.url);
+      w.onmessage = e => { mergeChunk(e.data); feedWorker(w); };
+      w.onerror = () => fallbackToMain();
+      b.workers.push(w);
+    }
+    b.workers.forEach(feedWorker);
+  } catch (err) {
+    fallbackToMain();
+  }
+}
+
+function setRunning(on) {
+  $('run').disabled = on;
+  $('stop').disabled = !on;
+  $('spin').classList.toggle('on', on);
+  SEAT_ORDER.forEach(c => { $('cb-' + c).disabled = on; $('st-' + c).disabled = on || !$('cb-' + c).checked; });
+  ['preset2', 'preset3', 'preset4', 'games', 'seed', 'firstMode'].forEach(id => $(id).disabled = on);
 }
 
 $('run').onclick = () => {
@@ -739,68 +919,118 @@ $('run').onclick = () => {
   const seedText = $('seed').value.trim();
   const seed = seedText === '' ? ((Math.random() * 4294967296) >>> 0)
     : (/^\d+$/.test(seedText) ? (Number(seedText) >>> 0) : strHash(seedText));
-  run = createRun(total, seed, players);
-  run.seed = seed;
-  stopFlag = false;
-  startedAt = performance.now();
+  const cfg = { players, strategies: strategies(), randomStart: $('firstMode').value === 'random', total, seed };
+
+  const chunks = [];
+  for (let i = 0, left = total; left > 0; i++) {
+    const n = Math.min(CHUNK, left);
+    chunks.push({ id: i, count: n, seed: (seed ^ Math.imul(i + 1, 0x9E3779B1)) >>> 0, merged: false });
+    left -= n;
+  }
+  batch = { cfg, queue: chunks, allChunks: chunks, next: 0, workers: [], url: null, finished: false,
+    done: 0, wins: { yellow: 0, green: 0, red: 0, blue: 0, none: 0 }, turnSum: 0, bumps: 0, slides: 0,
+    firstWins: 0, firstLog: null, startedAt: performance.now(), lastPaint: 0 };
+
   $('results').classList.add('hidden');
   $('logCard').classList.add('hidden');
   setRunning(true);
-  startWatch(players);
-  tick();
+  startWatch(cfg);
+  renderLive(true);
+  if (typeof Worker !== 'undefined') startWorkers(); else setTimeout(runOnMainThread, 0);
 };
 
-$('stop').onclick = () => { stopFlag = true; };
+$('stop').onclick = () => { if (batch && !batch.finished) finishBatch(true); };
 
-function finish() {
-  clearInterval(watchTimer); watchTimer = null; watch = null;
-  cancelAnimationFrame(rafId); rafId = 0;
-  const stopped = stopFlag && run.done < run.total;
-  run.total = run.done;
-  renderLive();
+function finishBatch(stopped) {
+  const b = batch;
+  if (!b || b.finished) return;
+  b.finished = true;
+  b.workers.forEach(w => w.terminate());
+  if (b.url) URL.revokeObjectURL(b.url);
+  stopWatch();
+  const cfg = b.cfg;
+  renderLive(true);
   setRunning(false);
-  $('status').textContent = stopped ? `Stopped after ${run.done.toLocaleString()} games` : `Finished ${run.done.toLocaleString()} games`;
+  $('status').textContent = stopped && b.done < cfg.total
+    ? `Stopped after ${b.done.toLocaleString()} games` : `Finished ${b.done.toLocaleString()} games`;
   $('turnWho').textContent = 'Done';
   $('watchText').textContent = 'Simulation finished. Run again to watch another sample game.';
-  snapView(run.players, emptyState()); setCard(null); render();
-  showResults();
+  $('homeCounts').textContent = '';
+  setCard(null);
+  snapView(cfg.players, emptyState());
+  batch = null;
+  updateOrder();
+  if (b.done > 0) showResults(b);
 }
 
-function showResults() {
-  const players = run.players, decided = run.total - run.wins.none;
-  const expected = decided / players.length;
+// ----- results -----
+let lastSummary = '';
+
+function showResults(b) {
+  const cfg = b.cfg, players = cfg.players, N = players.length;
+  const total = b.done, decided = total - b.wins.none, fairShare = 100 / N;
+  const expected = decided / N;
   let chi = 0, rows = '';
+  const fixed = !cfg.randomStart;
   for (const c of players) {
-    const w = run.wins[c];
-    const share = decided ? w / decided : 0;
+    const w = b.wins[c], share = decided ? w / decided : 0;
     const ci = decided ? 1.96 * Math.sqrt(share * (1 - share) / decided) * 100 : 0;
     chi += expected ? (w - expected) ** 2 / expected : 0;
-    rows += `<tr><td><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)} (P${players.indexOf(c) + 1})</td>` +
+    const strat = cfg.strategies[c] === 'random' ? ' · random' : '';
+    rows += `<tr><td><span class="dot" style="background:${COLOR_HEX[c]}"></span>${cap(c)}${fixed ? ` (P${players.indexOf(c) + 1})` : ''}${strat}</td>` +
       `<td>${w.toLocaleString()}</td><td>${(share * 100).toFixed(2)}% ± ${ci.toFixed(2)}</td></tr>`;
   }
   $('rows').innerHTML = rows;
-  const p = chi2Survival(chi, players.length - 1);
-  $('meta').textContent = `Games: ${run.total.toLocaleString()} · no winner (turn limit): ${run.wins.none.toLocaleString()} · ` +
-    `average length: ${(run.turnSum / run.total).toFixed(1)} player turns · seed: ${run.seed} · ` +
-    `equal odds would be ${(100 / players.length).toFixed(2)}% each.`;
-  const v = $('verdict');
-  const sorted = players.slice().sort((a, b) => run.wins[b] - run.wins[a]);
+  const p = chi2Survival(chi, N - 1);
+
+  const rounds = total ? b.turnSum / total / N : 0;
+  const firstShare = decided ? b.firstWins / decided * 100 : 0;
+  $('tiles').innerHTML =
+    `<div class="tile"><b>${rounds.toFixed(1)}</b><span>average rounds per game</span></div>` +
+    `<div class="tile"><b>${(b.bumps / total).toFixed(1)}</b><span>pawns sent back to Start per game</span></div>` +
+    `<div class="tile"><b>${(b.slides / total).toFixed(1)}</b><span>slides taken per game</span></div>` +
+    `<div class="tile"><b>${firstShare.toFixed(1)}%</b><span>wins by whoever moves first (fair: ${fairShare.toFixed(1)}%)</span></div>`;
+
+  const sorted = players.slice().sort((a, b2) => b.wins[b2] - b.wins[a]);
   const top = sorted[0], low = sorted[sorted.length - 1];
-  const topShare = decided ? run.wins[top] / decided * 100 : 0;
-  const lowShare = decided ? run.wins[low] / decided * 100 : 0;
-  const fairShare = 100 / players.length;
-  const tech = `<div class="note" style="margin-top:.4rem">Technical detail: chi-square p-value = ${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)} (below 0.05 counts as unfair).</div>`;
+  const topShare = decided ? b.wins[top] / decided * 100 : 0;
+  const lowShare = decided ? b.wins[low] / decided * 100 : 0;
+  const mixed = new Set(players.map(c => cfg.strategies[c])).size > 1;
+  const tech = `<div class="note" style="margin-top:.4rem;color:inherit;opacity:.85">Technical detail: chi-square p-value = ${p < 1e-4 ? p.toExponential(2) : p.toFixed(4)} (below 0.05 counts as unfair).</div>`;
+  const v = $('verdict');
+  let head, body;
   if (p < 0.05) {
     v.className = 'verdict unfair';
-    v.innerHTML = `<b>Not fair.</b> ${cap(top)} wins ${topShare.toFixed(1)}% of games and ${cap(low)} wins only ${lowShare.toFixed(1)}%, while a fair game would give everyone about ${fairShare.toFixed(1)}%. A gap this big almost never happens by chance, so the seating or turn order gives someone an edge.` + tech;
+    const why = mixed ? 'The players use different strategies, so skill is part of the reason.'
+      : (cfg.randomStart ? 'Everyone plays the same way and the starting player is random, so the board seating itself gives someone an edge.'
+        : 'Everyone plays the same way, so the seating or turn order gives someone an edge.');
+    head = 'Not fair.';
+    body = ` ${cap(top)} wins ${topShare.toFixed(1)}% of games and ${cap(low)} wins only ${lowShare.toFixed(1)}%, while a fair game would give everyone about ${fairShare.toFixed(1)}%. A gap this big almost never happens by chance. ${why}`;
   } else {
     v.className = 'verdict fair';
-    v.innerHTML = `<b>Looks fair.</b> Every player wins close to their fair share of ${fairShare.toFixed(1)}%. The small differences are what you'd expect from chance.` + tech;
+    head = 'Looks fair.';
+    body = ` Every player wins close to their fair share of ${fairShare.toFixed(1)}%. The small differences are what you'd expect from chance.`;
   }
-  $('log').textContent = (run.firstLog || []).join('\n');
+  const msg = head + body;
+  v.innerHTML = `<b>${head}</b>${body}` + tech;
+  $('meta').textContent = `Games: ${total.toLocaleString()} · no winner (turn limit): ${b.wins.none.toLocaleString()} · ` +
+    `seed: ${cfg.seed} · first player: ${cfg.randomStart ? 'random' : 'P1 always'}.`;
+
+  lastSummary = `Sorry! simulation: ${total.toLocaleString()} games, ${N} players` +
+    `${cfg.randomStart ? ', random first player' : ''}${mixed ? ', mixed strategies' : ''}\n` +
+    players.map(c => `${cap(c)}: ${(b.wins[c] / decided * 100).toFixed(2)}% (${b.wins[c].toLocaleString()} wins)`).join('\n') + `\n${msg}`;
+
+  $('log').textContent = (b.firstLog || []).join('\n');
   $('results').classList.remove('hidden');
   $('logCard').classList.remove('hidden');
+  $('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(lastSummary); $('copy').textContent = 'Copied!'; }
+  catch (e) { $('copy').textContent = 'Copy not available'; }
+  setTimeout(() => { $('copy').textContent = 'Copy results'; }, 1600);
+};
 </script>
 </body>
 </html>
