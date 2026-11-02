@@ -1,5 +1,7 @@
 # Sorry! Simulator
 
+> **"With no Player 4, whoever is seated right before the gap gets a free pass from one direction of attack without losing any of their own offense — a structural advantage that has nothing to do with skill."**
+
 A browser-based Monte Carlo simulator for the board game *Sorry!*. It plays thousands of full games with 2, 3, or 4 players (using either a "smart" or "random" strategy for each seat) and reports each player's actual win rate, so you can see whether turn order / seating gives anyone a statistically significant edge.
 
 ## Features
