@@ -140,7 +140,7 @@
   </div>
   <div class="live">
     <div class="boardCol">
-      <canvas id="board" width="920" height="920" role="img" aria-label="Sorry! board showing a sample game"></canvas>
+      <canvas id="board" width="920" height="920" role="img" aria-label="Sorry! board showing the final position of a sample game"></canvas>
       <div class="turnRow">
         <div class="cardFace" id="cardFace">?</div>
         <div class="turnInfo">
@@ -148,7 +148,7 @@
           <div id="cardDesc" class="note"></div>
         </div>
       </div>
-      <div class="note" id="watchText">Press “Run simulation” to start. A sample game is played live on the board (it isn’t counted in the stats).</div>
+      <div class="note" id="watchText">Press “Run simulation” to start. The board flashes the final result and winner of sample games (they aren’t counted in the stats).</div>
       <div class="note" id="homeCounts"></div>
       <div class="speedRow note"><span>Slow</span><input type="range" id="speed" min="1" max="10" value="6" aria-label="Watch speed"><span>Fast</span></div>
     </div>
@@ -764,6 +764,7 @@ function startWatch(cfg) {
   snapView(cfg.players, watch.prev);
   clearInterval(watchTimer);
   watchTimer = setInterval(stepWatch, watchInterval());
+  stepWatch();
 }
 function stopWatch() { clearInterval(watchTimer); watchTimer = null; watch = null; }
 
@@ -774,34 +775,35 @@ function setCard(card) {
   $('cardDesc').textContent = card === null ? '' : CARD_DESC[card];
 }
 
+// Plays one whole sample game instantly and returns its final position and winner.
+function playSample(cfg, rng) {
+  const N = cfg.players.length;
+  const startIdx = cfg.randomStart ? Math.floor(rng() * N) : 0;
+  const gen = gameSteps(rng, cfg.players, cfg.strategies, startIdx);
+  let r = gen.next(), last = emptyState();
+  while (!r.done) { last = r.value.s; r = gen.next(); }
+  return { state: last, winner: r.value.winner, turns: r.value.turns, startIdx };
+}
+
+// Flashes through finished sample games: shows each one's final board and its winner.
 function stepWatch() {
   if (!watch) return;
-  const interval = watchInterval(), cfg = watch.cfg, N = cfg.players.length;
-  if (watch.hold > 0) { watch.hold--; return; }
-  if (!watch.gen) {
-    const startIdx = cfg.randomStart ? Math.floor(watch.rng() * N) : 0;
-    watch.gen = gameSteps(watch.rng, cfg.players, cfg.strategies, startIdx);
-    watch.prev = emptyState();
-    snapView(cfg.players, watch.prev);
-    setCard(null);
-    $('turnWho').textContent = 'Shuffling the deck…';
-    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). ${cap(cfg.players[startIdx])} moves first.`;
-  }
-  const r = watch.gen.next();
-  if (r.done) {
-    watch.gen = null; watch.games++;
-    $('turnWho').textContent = r.value.winner ? `${cap(r.value.winner)} wins!` : 'No winner (turn limit)';
-    watch.hold = Math.ceil(2500 / interval);
-  } else {
-    const v = r.value;
-    animateTo(watch.prev, v.s, Math.max(120, interval * 0.85));
-    watch.prev = v.s;
-    setCard(v.card);
-    $('turnWho').innerHTML = `<span class="dot" style="background:${COLOR_HEX[v.c]}"></span>${cap(v.c)}'s turn · turn ${v.turn}`;
-    $('watchText').textContent = `Sample game ${watch.games + 1} (not counted in the stats). ${v.text}`;
-  }
+  const cfg = watch.cfg, N = cfg.players.length;
+  const g = playSample(cfg, watch.rng);
+  watch.games++;
+  snapView(cfg.players, g.state);
+  const col = g.winner ? COLOR_HEX[g.winner] : '#9ca3af';
+  canvas.style.boxShadow = `0 0 0 4px ${col}`;
+  $('cardFace').textContent = g.winner ? '🏆' : '–';
+  $('cardFace').classList.remove('sorry');
+  $('cardFace').style.borderColor = col;
+  $('turnWho').innerHTML = g.winner
+    ? `<span class="dot" style="background:${col}"></span>${cap(g.winner)} wins!`
+    : 'No winner (turn limit)';
+  $('cardDesc').textContent = `Game ${watch.games} · ${Math.round(g.turns / N)} rounds`;
+  $('watchText').textContent = `Sample game ${watch.games} (not counted in the stats). The board shows the final position.`;
   $('homeCounts').textContent = 'In Home: ' + cfg.players.map(c =>
-    `${cap(c)} ${watch.prev.pos[c].filter(p => p === HOME).length}/4`).join(' · ');
+    `${cap(c)} ${g.state.pos[c].filter(p => p === HOME).length}/4`).join(' · ');
 }
 $('speed').oninput = () => {
   if (watchTimer) { clearInterval(watchTimer); watchTimer = setInterval(stepWatch, watchInterval()); }
@@ -954,9 +956,11 @@ function finishBatch(stopped) {
   $('status').textContent = stopped && b.done < cfg.total
     ? `Stopped after ${b.done.toLocaleString()} games` : `Finished ${b.done.toLocaleString()} games`;
   $('turnWho').textContent = 'Done';
-  $('watchText').textContent = 'Simulation finished. Run again to watch another sample game.';
+  $('watchText').textContent = 'Simulation finished. Run again to flash through more sample games.';
   $('homeCounts').textContent = '';
   setCard(null);
+  canvas.style.boxShadow = 'none';
+  $('cardFace').style.borderColor = '';
   snapView(cfg.players, emptyState());
   batch = null;
   updateOrder();
